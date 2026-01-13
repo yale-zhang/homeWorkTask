@@ -109,7 +109,7 @@ const App: React.FC = () => {
               <Route path="/inbox" element={<HomeworkInbox onNewTask={handleAddTask} />} />
               <Route path="/scanner" element={<Scanner tasks={tasks} onUpdateTask={handleUpdateTask} />} />
               <Route path="/learning" element={<LearningHub tasks={tasks} />} />
-              <Route path="/reports" element={<Reports />} />
+              <Route path="/reports" element={<Reports tasks={tasks} />} />
             </Routes>
           </div>
         </main>

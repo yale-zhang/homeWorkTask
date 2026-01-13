@@ -2,8 +2,8 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { geminiService } from '../services/geminiService';
-import { HomeworkTask, GradingResult } from '../types';
-import { Camera, Upload, Loader2, CheckCircle2, AlertCircle, X, ChevronRight, FileText, Eye } from 'lucide-react';
+import { HomeworkTask, GradingResult, AssignmentCategory } from '../types';
+import { Camera, Upload, Loader2, CheckCircle2, AlertCircle, X, ChevronRight, FileText, Eye, Tag, Info, Trophy, Target, Zap } from 'lucide-react';
 
 interface Props {
   tasks: HomeworkTask[];
@@ -18,6 +18,7 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
   const [image, setImage] = useState<string | null>(null);
   const [ocrPreview, setOcrPreview] = useState<string | null>(null);
   const [result, setResult] = useState<GradingResult | null>(null);
+  const [activeKPIndex, setActiveKPIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,12 +52,8 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
     setIsScanning(true);
     try {
       const base64Data = image.split(',')[1];
-      // Trigger AI grading with Gemini 3 Pro
       const res = await geminiService.gradeSubmission(base64Data, selectedTask.content);
-      
       setResult(res);
-
-      // Update global state to persist the 'graded' status and result data
       onUpdateTask({
         ...selectedTask,
         status: 'graded',
@@ -70,13 +67,30 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
     }
   };
 
+  const getCategoryColor = (category: AssignmentCategory) => {
+    switch (category) {
+      case AssignmentCategory.MAJOR_GRADE: return 'bg-rose-100 text-rose-700 border-rose-200';
+      case AssignmentCategory.QUIZ: return 'bg-amber-100 text-amber-700 border-amber-200';
+      case AssignmentCategory.HOMEWORK: return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+      case AssignmentCategory.PRACTICE: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const getMasteryStatus = (mastery: number) => {
+    if (mastery >= 85) return { label: 'Mastered', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Trophy, desc: 'Excellent work! You have a solid grasp of this concept.' };
+    if (mastery >= 60) return { label: 'Proficient', color: 'text-indigo-600', bg: 'bg-indigo-50', icon: Zap, desc: 'Good progress. A few minor errors were detected.' };
+    if (mastery >= 40) return { label: 'Improving', color: 'text-amber-600', bg: 'bg-amber-50', icon: Target, desc: 'Keep practicing. Some core logic needs more focus.' };
+    return { label: 'Needs Focus', color: 'text-rose-600', bg: 'bg-rose-50', icon: AlertCircle, desc: 'Critical gaps detected. Consider reviewing the fundamental rules.' };
+  };
+
   if (result) {
     return (
-      <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in-95 duration-500">
+      <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in-95 duration-500 pb-20">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-slate-900">Grading Analysis</h1>
           <button 
-            onClick={() => { setResult(null); setSelectedTask(null); setImage(null); setOcrPreview(null); }} 
+            onClick={() => { setResult(null); setSelectedTask(null); setImage(null); setOcrPreview(null); setActiveKPIndex(null); }} 
             className="text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium"
           >
             <X size={20} /> Close
@@ -126,30 +140,86 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
         )}
 
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-800 mb-6">Knowledge Point Breakdown</h2>
-          <div className="space-y-6">
-            {result.knowledgePoints?.map((kp, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-slate-700">{kp.point}</span>
-                  <span className={kp.mastery > 70 ? 'text-emerald-600' : 'text-rose-600'}>{kp.mastery}%</span>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-slate-800">Knowledge Point Breakdown</h2>
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
+              <Info size={14} /> Click points for insights
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              {result.knowledgePoints?.map((kp, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveKPIndex(activeKPIndex === i ? null : i)}
+                  className={`w-full text-left p-4 rounded-xl border transition-all duration-200 group ${
+                    activeKPIndex === i 
+                    ? 'border-indigo-600 bg-indigo-50/30 ring-2 ring-indigo-500/10' 
+                    : 'border-slate-100 hover:border-slate-300 bg-slate-50/50'
+                  }`}
+                >
+                  <div className="flex justify-between text-sm font-bold mb-2">
+                    <span className="text-slate-700">{kp.point}</span>
+                    <span className={kp.mastery > 70 ? 'text-emerald-600' : 'text-rose-600'}>{kp.mastery}%</span>
+                  </div>
+                  <div className="h-2.5 bg-slate-200/50 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-1000 ${
+                        kp.mastery > 70 ? 'bg-emerald-500' : kp.mastery > 40 ? 'bg-amber-500' : 'bg-rose-500'
+                      }`} 
+                      style={{ width: `${kp.mastery}%` }}
+                    ></div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="min-h-[200px] flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl p-6 bg-slate-50/20">
+              {activeKPIndex !== null ? (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300 w-full space-y-4">
+                  {(() => {
+                    const kp = result.knowledgePoints[activeKPIndex];
+                    const status = getMasteryStatus(kp.mastery);
+                    const StatusIcon = status.icon;
+                    return (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className={`p-3 rounded-xl ${status.bg} ${status.color}`}>
+                            <StatusIcon size={24} />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800">{kp.point}</h4>
+                            <span className={`text-xs font-black uppercase tracking-widest ${status.color}`}>{status.label}</span>
+                          </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
+                          <p className="text-sm text-slate-600 leading-relaxed italic">
+                            "{status.desc}"
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                          <span>Real-time Diagnostic</span>
+                          <div className="h-px flex-1 bg-slate-100"></div>
+                          <span>Targeted Recommendation</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
-                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-1000 ${
-                      kp.mastery > 70 ? 'bg-emerald-500' : kp.mastery > 40 ? 'bg-amber-500' : 'bg-rose-500'
-                    }`} 
-                    style={{ width: `${kp.mastery}%` }}
-                  ></div>
+              ) : (
+                <div className="text-center space-y-2 opacity-50">
+                  <Target className="mx-auto text-slate-300" size={40} />
+                  <p className="text-sm font-medium text-slate-500">Select a knowledge point to see mastery details</p>
                 </div>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         </div>
 
         <div className="flex justify-end gap-4">
           <button 
-            onClick={() => { setResult(null); setSelectedTask(null); setImage(null); setOcrPreview(null); }} 
+            onClick={() => { setResult(null); setSelectedTask(null); setImage(null); setOcrPreview(null); setActiveKPIndex(null); }} 
             className="px-6 py-3 rounded-xl border border-slate-200 font-bold hover:bg-slate-50 transition-colors"
           >
             Dashboard
@@ -182,7 +252,12 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
                 onClick={() => setSelectedTask(task)}
                 className="text-left p-6 rounded-2xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all group"
               >
-                <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">{task.subject}</span>
+                <div className="flex justify-between items-start">
+                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">{task.subject}</span>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${getCategoryColor(task.category)}`}>
+                    {task.category}
+                  </span>
+                </div>
                 <h3 className="font-bold text-slate-800 mt-1 mb-2 group-hover:text-indigo-900">{task.content}</h3>
                 <p className="text-xs text-slate-400">Due {task.deadline}</p>
               </button>
@@ -202,7 +277,12 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
                 {selectedTask.subject[0]}
               </div>
               <div>
-                <h4 className="font-bold text-slate-800 text-sm">{selectedTask.subject}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-slate-800 text-sm">{selectedTask.subject}</h4>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${getCategoryColor(selectedTask.category)}`}>
+                    {selectedTask.category}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 truncate max-w-[200px]">{selectedTask.content}</p>
               </div>
             </div>

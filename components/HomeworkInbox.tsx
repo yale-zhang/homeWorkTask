@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { geminiService } from '../services/geminiService';
-import { HomeworkTask, Subject } from '../types';
-import { MessageSquare, Send, Bot, Loader2, Plus, ArrowRight, X, Calendar as CalendarIcon } from 'lucide-react';
+import { HomeworkTask, Subject, AssignmentCategory } from '../types';
+import { MessageSquare, Send, Bot, Loader2, Plus, ArrowRight, X, Calendar as CalendarIcon, Tag } from 'lucide-react';
 
 interface Props {
   onNewTask: (task: HomeworkTask) => void;
@@ -19,6 +19,7 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
   // Manual Form State
   const [manualTask, setManualTask] = useState({
     subject: Subject.MATH,
+    category: AssignmentCategory.HOMEWORK,
     content: '',
     deadline: ''
   });
@@ -27,10 +28,19 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
     setParsingId(msg.id);
     try {
       const result = await geminiService.extractHomeworkFromMessage(msg.text);
+      
+      // Ensure the extracted category matches our enum
+      let category = AssignmentCategory.HOMEWORK;
+      const extractedCat = result.category?.toLowerCase() || '';
+      if (extractedCat.includes('major')) category = AssignmentCategory.MAJOR_GRADE;
+      else if (extractedCat.includes('quiz')) category = AssignmentCategory.QUIZ;
+      else if (extractedCat.includes('practice') || extractedCat.includes('daily')) category = AssignmentCategory.PRACTICE;
+
       const newTask: HomeworkTask = {
         id: Math.random().toString(36).substr(2, 9),
         source: msg.group,
         subject: result.subject as Subject || Subject.MATH,
+        category: category,
         content: result.content || msg.text,
         deadline: result.deadline || 'Upcoming',
         status: 'pending',
@@ -53,6 +63,7 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
       id: Math.random().toString(36).substr(2, 9),
       source: 'Manual Entry',
       subject: manualTask.subject,
+      category: manualTask.category,
       content: manualTask.content,
       deadline: manualTask.deadline,
       status: 'pending',
@@ -61,7 +72,17 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
 
     onNewTask(newTask);
     setShowManualForm(false);
-    setManualTask({ subject: Subject.MATH, content: '', deadline: '' });
+    setManualTask({ subject: Subject.MATH, category: AssignmentCategory.HOMEWORK, content: '', deadline: '' });
+  };
+
+  const getCategoryColor = (category: AssignmentCategory) => {
+    switch (category) {
+      case AssignmentCategory.MAJOR_GRADE: return 'bg-rose-100 text-rose-700 border-rose-200';
+      case AssignmentCategory.QUIZ: return 'bg-amber-100 text-amber-700 border-amber-200';
+      case AssignmentCategory.HOMEWORK: return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+      case AssignmentCategory.PRACTICE: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
   };
 
   return (
@@ -85,7 +106,6 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
         </div>
       </header>
 
-      {/* Manual Add Form Overlay/Section */}
       {showManualForm && (
         <div className="bg-white rounded-2xl border-2 border-indigo-100 p-8 shadow-xl shadow-indigo-100/50 animate-in zoom-in-95 duration-300">
           <div className="flex justify-between items-center mb-6">
@@ -98,7 +118,7 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
           </div>
           
           <form onSubmit={handleManualSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Subject</label>
                 <select 
@@ -108,6 +128,18 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask }) => {
                 >
                   {Object.values(Subject).map(s => (
                     <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Category</label>
+                <select 
+                  value={manualTask.category}
+                  onChange={(e) => setManualTask({...manualTask, category: e.target.value as AssignmentCategory})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                >
+                  {Object.values(AssignmentCategory).map(c => (
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>

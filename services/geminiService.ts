@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Subject } from "../types";
+import { Subject, AssignmentCategory } from "../types";
 
 // Always use process.env.API_KEY directly as per SDK guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -29,17 +29,18 @@ export const geminiService = {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Extract homework details from this school chat message: "${message}". 
-      Identify Subject (Math, Science, English, etc.), Deadline, and Task Content.`,
+      Identify Subject (Math, Science, English, History, Chinese), Deadline, Task Content, and Category (Major Grade, Quiz, Homework, or Daily Practice).`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             subject: { type: Type.STRING },
+            category: { type: Type.STRING, description: "One of: Major Grade, Quiz, Homework, Daily Practice" },
             deadline: { type: Type.STRING },
             content: { type: Type.STRING },
           },
-          required: ["subject", "content"]
+          required: ["subject", "content", "category"]
         }
       }
     });
@@ -107,6 +108,7 @@ export const geminiService = {
               items: {
                 type: Type.OBJECT,
                 properties: {
+                  id: { type: Type.STRING, description: "A unique slug for this task" },
                   title: { type: Type.STRING },
                   type: { type: Type.STRING },
                   description: { type: Type.STRING }

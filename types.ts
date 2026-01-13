@@ -7,10 +7,18 @@ export enum Subject {
   CHINESE = 'Chinese'
 }
 
+export enum AssignmentCategory {
+  MAJOR_GRADE = 'Major Grade',
+  QUIZ = 'Quiz',
+  HOMEWORK = 'Homework',
+  PRACTICE = 'Daily Practice'
+}
+
 export interface HomeworkTask {
   id: string;
   source: string; // e.g., "School Group 101"
   subject: Subject;
+  category: AssignmentCategory;
   content: string;
   deadline: string;
   status: 'pending' | 'submitted' | 'graded';
@@ -31,15 +39,18 @@ export interface GradingResult {
   }[];
 }
 
+export interface LearningTask {
+  id: string;
+  title: string;
+  type: 'video' | 'exercise' | 'reading';
+  url?: string;
+  description: string;
+}
+
 export interface LearningPlan {
   id: string;
   focusArea: string;
-  tasks: {
-    title: string;
-    type: 'video' | 'exercise' | 'reading';
-    url?: string;
-    description: string;
-  }[];
+  tasks: LearningTask[];
 }
 
 export interface WeeklyStats {

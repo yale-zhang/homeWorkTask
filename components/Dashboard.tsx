@@ -1,7 +1,7 @@
 
-import React from 'react';
-import { HomeworkTask } from '../types';
-import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { HomeworkTask, AssignmentCategory, Subject } from '../types';
+import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, Calendar } from 'lucide-react';
 
 interface Props {
   tasks: HomeworkTask[];
@@ -23,8 +23,39 @@ const StatCard = ({ label, value, icon: Icon, color }: { label: string, value: s
 );
 
 const Dashboard: React.FC<Props> = ({ tasks }) => {
+  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('');
+
   const pending = tasks.filter(t => t.status === 'pending').length;
   const graded = tasks.filter(t => t.status === 'graded').length;
+
+  const getCategoryColor = (category: AssignmentCategory) => {
+    switch (category) {
+      case AssignmentCategory.MAJOR_GRADE: return 'bg-rose-50 text-rose-600 border-rose-100';
+      case AssignmentCategory.QUIZ: return 'bg-amber-50 text-amber-600 border-amber-100';
+      case AssignmentCategory.HOMEWORK: return 'bg-indigo-50 text-indigo-600 border-indigo-100';
+      case AssignmentCategory.PRACTICE: return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+    }
+  };
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const matchesSubject = subjectFilter === 'all' || task.subject === subjectFilter;
+      const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
+      const matchesDate = !dateFilter || task.deadline.includes(dateFilter) || task.deadline === dateFilter;
+      return matchesSubject && matchesCategory && matchesDate;
+    });
+  }, [tasks, subjectFilter, categoryFilter, dateFilter]);
+
+  const clearFilters = () => {
+    setSubjectFilter('all');
+    setCategoryFilter('all');
+    setDateFilter('');
+  };
+
+  const isFiltered = subjectFilter !== 'all' || categoryFilter !== 'all' || dateFilter !== '';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -42,33 +73,92 @@ const Dashboard: React.FC<Props> = ({ tasks }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 className="text-xl font-bold text-slate-800">Recent Assignments</h2>
-            <button className="text-indigo-600 text-sm font-semibold hover:underline">View All</button>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <select 
+                  value={subjectFilter}
+                  onChange={(e) => setSubjectFilter(e.target.value)}
+                  className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                >
+                  <option value="all">All Subjects</option>
+                  {Object.values(Subject).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+              </div>
+
+              <div className="relative">
+                <select 
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                >
+                  <option value="all">All Categories</option>
+                  {Object.values(AssignmentCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+              </div>
+
+              <div className="relative">
+                <input 
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm min-w-[130px]"
+                />
+              </div>
+
+              {isFiltered && (
+                <button 
+                  onClick={clearFilters}
+                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold uppercase"
+                >
+                  <X size={14} /> Clear
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-sm">
-            {tasks.length > 0 ? tasks.slice(0, 5).map((task) => (
+            {filteredTasks.length > 0 ? filteredTasks.slice(0, 8).map((task) => (
               <div key={task.id} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0">
                   {task.subject[0]}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-slate-800">{task.subject}</h4>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h4 className="font-semibold text-slate-800 truncate">{task.subject}</h4>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${getCategoryColor(task.category)}`}>
+                      {task.category}
+                    </span>
+                  </div>
                   <p className="text-sm text-slate-500 line-clamp-1">{task.content}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${
                     task.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                   }`}>
                     {task.status}
                   </span>
-                  <p className="text-xs text-slate-400 mt-1">Due {task.deadline}</p>
+                  <p className="text-xs text-slate-400 mt-1 flex items-center justify-end gap-1">
+                    <Calendar size={10} /> {task.deadline}
+                  </p>
                 </div>
               </div>
             )) : (
-              <div className="p-12 text-center text-slate-500">
-                No active assignments. Check your inbox!
+              <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
+                <div className="p-3 bg-slate-50 rounded-full text-slate-300">
+                  <Filter size={24} />
+                </div>
+                <p className="font-medium">No assignments match your filters.</p>
+                <button 
+                  onClick={clearFilters}
+                  className="text-indigo-600 text-sm font-bold hover:underline"
+                >
+                  Reset all filters
+                </button>
               </div>
             )}
           </div>
