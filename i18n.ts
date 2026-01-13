@@ -18,9 +18,18 @@ const translations: Translations = {
   nav_reports: { en: 'Reports', zh: '学情报告' },
   workspace: { en: 'Workspace', zh: '工作空间' },
   
+  // Auth
+  login_welcome: { en: 'Welcome to IntelliTask', zh: '欢迎使用 IntelliTask' },
+  login_desc: { en: 'Sign in with WeChat to sync your learning data across devices.', zh: '使用微信登录以同步您的多端学习数据。' },
+  wechat_login: { en: 'WeChat Login', zh: '微信授权登录' },
+  switch_account: { en: 'Switch Account', zh: '切换账号' },
+  logout: { en: 'Logout', zh: '退出登录' },
+  auth_loading: { en: 'Authorizing...', zh: '正在授权...' },
+  account_center: { en: 'Account Center', zh: '账号中心' },
+  
   // Dashboard
-  welcome: { en: 'Welcome back, Alex!', zh: '欢迎回来，Alex！' },
-  pending_desc: { en: 'You have {count} assignments to complete this week.', zh: '你本周 browse 有 {count} 项作业待完成。' },
+  welcome: { en: 'Welcome back, {name}!', zh: '欢迎回来，{name}！' },
+  pending_desc: { en: 'You have {count} assignments to complete this week.', zh: '你本周有 {count} 项作业待完成。' },
   stat_pending: { en: 'Pending Tasks', zh: '待处理任务' },
   stat_completed: { en: 'Completed', zh: '已完成' },
   stat_avg_score: { en: 'Avg Score', zh: '平均分' },
@@ -75,7 +84,6 @@ const translations: Translations = {
   critical_gaps: { en: 'Critical Knowledge Gaps', zh: '核心知识漏洞' },
   recommendation: { en: 'Strategic Recommendation', zh: '学习策略建议' },
 
-  // Subjects & Categories mapping keys
   Mathematics: { en: 'Mathematics', zh: '数学' },
   Science: { en: 'Science', zh: '科学' },
   English: { en: 'English', zh: '英语' },

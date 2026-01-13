@@ -1,33 +1,20 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Layout, LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle } from 'lucide-react';
+import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, RefreshCcw, QrCode, Loader2, ChevronRight } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import HomeworkInbox from './components/HomeworkInbox';
 import Scanner from './components/Scanner';
 import LearningHub from './components/LearningHub';
 import Reports from './components/Reports';
-import { HomeworkTask, LearningPlan } from './types';
+import { HomeworkTask, LearningPlan, UserProfile } from './types';
 import { LanguageProvider, useTranslation } from './i18n';
 
-const TASKS_STORAGE_KEY = 'intellitask_tasks_v1';
-const PLAN_STORAGE_KEY = 'intellitask_plan_v1';
+// Constants for per-user storage
+const USERS_LIST_KEY = 'intellitask_users_list';
+const CURRENT_USER_ID_KEY = 'intellitask_current_uid';
 
-interface Notification {
-  id: string;
-  message: string;
-  time: number;
-  read: boolean;
-}
-
-interface SidebarItemProps {
-  icon: any;
-  label: string;
-  path: string;
-  active: boolean;
-}
-
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, path, active }) => (
+const SidebarItem: React.FC<{ icon: any; label: string; path: string; active: boolean }> = ({ icon: Icon, label, path, active }) => (
   <Link
     to={path}
     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
@@ -42,28 +29,58 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, path, acti
 const AppContent: React.FC = () => {
   const { t, language, setLanguage } = useTranslation();
   
-  // Tasks Persistence
-  const [tasks, setTasks] = useState<HomeworkTask[]>(() => {
-    try {
-      const saved = localStorage.getItem(TASKS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
+  // Auth & Account State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    const savedUid = localStorage.getItem(CURRENT_USER_ID_KEY);
+    const usersList = JSON.parse(localStorage.getItem(USERS_LIST_KEY) || '[]');
+    return usersList.find((u: UserProfile) => u.id === savedUid) || null;
+  });
+  
+  const [availableUsers, setAvailableUsers] = useState<UserProfile[]>(() => {
+    return JSON.parse(localStorage.getItem(USERS_LIST_KEY) || '[]');
   });
 
-  // Learning Plan Persistence
-  const [currentPlan, setCurrentPlan] = useState<LearningPlan | null>(() => {
-    try {
-      const saved = localStorage.getItem(PLAN_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
-  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showAccountCenter, setShowAccountCenter] = useState(false);
 
-  // Notifications State
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  // Per-User Task State
+  const tasksKey = useMemo(() => currentUser ? `intellitask_tasks_${currentUser.id}` : 'guest_tasks', [currentUser]);
+  const planKey = useMemo(() => currentUser ? `intellitask_plan_${currentUser.id}` : 'guest_plan', [currentUser]);
+
+  const [tasks, setTasks] = useState<HomeworkTask[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<LearningPlan | null>(null);
+
+  // Load data when user changes
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(CURRENT_USER_ID_KEY, currentUser.id);
+      const savedTasks = localStorage.getItem(tasksKey);
+      const savedPlan = localStorage.getItem(planKey);
+      setTasks(savedTasks ? JSON.parse(savedTasks) : []);
+      setCurrentPlan(savedPlan ? JSON.parse(savedPlan) : null);
+    } else {
+      setTasks([]);
+      setCurrentPlan(null);
+    }
+  }, [currentUser, tasksKey, planKey]);
+
+  // Save data when state changes
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(tasksKey, JSON.stringify(tasks));
+    }
+  }, [tasks, tasksKey, currentUser]);
+
+  useEffect(() => {
+    if (currentUser && currentPlan) {
+      localStorage.setItem(planKey, JSON.stringify(currentPlan));
+    } else if (currentUser) {
+      localStorage.removeItem(planKey);
+    }
+  }, [currentPlan, planKey, currentUser]);
+
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [activeToast, setActiveToast] = useState<string | null>(null);
 
@@ -76,36 +93,152 @@ const AppContent: React.FC = () => {
     };
     setNotifications(prev => [newNotif, ...prev]);
     setActiveToast(message);
-    setTimeout(() => setActiveToast(null), 5000); // Hide toast after 5s
+    setTimeout(() => setActiveToast(null), 5000);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
-  }, [tasks]);
+  const handleAddTask = (task: HomeworkTask) => setTasks(prev => [task, ...prev]);
+  const handleUpdateTask = (updatedTask: HomeworkTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
 
-  useEffect(() => {
-    if (currentPlan) {
-      localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(currentPlan));
-    } else {
-      localStorage.removeItem(PLAN_STORAGE_KEY);
-    }
-  }, [currentPlan]);
+  // Mock WeChat Login
+  const handleWeChatAuth = () => {
+    setIsLoggingIn(true);
+    setTimeout(() => {
+      const mockUsers = [
+        { id: 'wx_1001', nickname: 'Alex Student', avatar: 'https://picsum.photos/seed/user1/100/100', grade: language === 'zh' ? '11年级 A班' : 'Grade 11, Section A' },
+        { id: 'wx_1002', nickname: 'Emily Wang', avatar: 'https://picsum.photos/seed/user2/100/100', grade: language === 'zh' ? '9年级 C班' : 'Grade 9, Section C' },
+        { id: 'wx_1003', nickname: 'Kevin Zhang', avatar: 'https://picsum.photos/seed/user3/100/100', grade: language === 'zh' ? '12年级 特长班' : 'Grade 12, Honors' },
+      ];
+      const newUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
+      
+      setAvailableUsers(prev => {
+        const exists = prev.find(u => u.id === newUser.id);
+        if (exists) return prev;
+        const newList = [...prev, newUser];
+        localStorage.setItem(USERS_LIST_KEY, JSON.stringify(newList));
+        return newList;
+      });
 
-  const handleAddTask = (task: HomeworkTask) => {
-    setTasks(prev => [task, ...prev]);
+      setCurrentUser(newUser);
+      setIsLoggingIn(false);
+      setIsAuthModalOpen(false);
+      addNotification(`${language === 'zh' ? '授权成功，欢迎' : 'Authorized successfully, welcome'} ${newUser.nickname}`);
+    }, 1500);
   };
 
-  const handleUpdateTask = (updatedTask: HomeworkTask) => {
-    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+  const switchAccount = (user: UserProfile) => {
+    setCurrentUser(user);
+    setShowAccountCenter(false);
+    addNotification(`${language === 'zh' ? '已切换至' : 'Switched to'} ${user.nickname}`);
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const handleLogout = () => {
+    localStorage.removeItem(CURRENT_USER_ID_KEY);
+    setCurrentUser(null);
+    setShowAccountCenter(false);
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Animated Background Orbs */}
+        <div className="absolute top-0 -left-20 w-80 h-80 bg-emerald-500/20 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-0 -right-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
+
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 relative z-10 animate-in zoom-in-95 duration-500 border border-white/20">
+          <div className="flex flex-col items-center text-center space-y-6">
+            <div className="bg-emerald-500 p-4 rounded-3xl text-white shadow-xl shadow-emerald-500/30">
+              <BookOpen size={48} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">{t('login_welcome')}</h1>
+              <p className="text-slate-500 text-sm leading-relaxed">{t('login_desc')}</p>
+            </div>
+
+            <div className="w-full pt-8 space-y-4">
+              <button 
+                onClick={handleWeChatAuth}
+                disabled={isLoggingIn}
+                className="w-full bg-[#07C160] hover:bg-[#06ae56] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-emerald-100 transition-all active:scale-95 disabled:opacity-70"
+              >
+                {isLoggingIn ? <Loader2 className="animate-spin" size={24} /> : <RefreshCcw size={22} />}
+                <span className="text-lg">{isLoggingIn ? t('auth_loading') : t('wechat_login')}</span>
+              </button>
+              
+              <div className="flex items-center gap-4 py-2">
+                <div className="h-px flex-1 bg-slate-100"></div>
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{language === 'zh' ? '或使用二维码' : 'OR USE QR CODE'}</span>
+                <div className="h-px flex-1 bg-slate-100"></div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl flex items-center justify-center aspect-square max-w-[200px] mx-auto group cursor-pointer hover:border-emerald-500 transition-colors">
+                <QrCode size={120} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+              </div>
+            </div>
+            
+            <p className="text-[10px] text-slate-400 font-medium">
+              By logging in, you agree to our <span className="underline">Terms of Service</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
+      {/* Account Center Modal */}
+      {showAccountCenter && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900">{t('account_center')}</h3>
+              <button onClick={() => setShowAccountCenter(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+              {availableUsers.map(user => (
+                <button
+                  key={user.id}
+                  onClick={() => switchAccount(user)}
+                  className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all border ${
+                    currentUser.id === user.id ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent hover:bg-slate-100'
+                  }`}
+                >
+                  <img src={user.avatar} className="w-12 h-12 rounded-full border-2 border-white shadow-sm" alt={user.nickname} />
+                  <div className="text-left flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 truncate">{user.nickname}</p>
+                    <p className="text-xs text-slate-500">{user.grade}</p>
+                  </div>
+                  {currentUser.id === user.id && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
+                </button>
+              ))}
+              
+              <button 
+                onClick={handleWeChatAuth}
+                className="w-full p-4 rounded-2xl flex items-center gap-4 border border-dashed border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors group"
+              >
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                  <RefreshCcw size={20} />
+                </div>
+                <span className="font-bold text-sm">{language === 'zh' ? '添加新账号' : 'Add Account'}</span>
+              </button>
+            </div>
+            <div className="p-6 bg-slate-50 flex gap-4">
+              <button 
+                onClick={handleLogout}
+                className="flex-1 py-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 font-bold flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors"
+              >
+                <LogOut size={18} /> {t('logout')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {activeToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10 duration-500">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[110] animate-in slide-in-from-top-10 duration-500">
           <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-700/50 backdrop-blur-xl">
             <div className="bg-indigo-500 p-2 rounded-lg">
               <CheckCircle size={20} />
@@ -131,15 +264,20 @@ const AppContent: React.FC = () => {
         </nav>
 
         <div className="mt-auto pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
-              <img src="https://picsum.photos/seed/user1/40/40" alt="Avatar" />
+          <button 
+            onClick={() => setShowAccountCenter(true)}
+            className="w-full flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-100 transition-all group"
+          >
+            <div className="relative">
+              <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt="Avatar" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">Alex Student</p>
-              <p className="text-xs text-slate-500 truncate">{language === 'zh' ? '11年级 A班' : 'Grade 11, Section A'}</p>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{currentUser.nickname}</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight truncate">{currentUser.grade}</p>
             </div>
-          </div>
+            <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-600 transition-all" />
+          </button>
         </div>
       </aside>
 
@@ -164,9 +302,9 @@ const AppContent: React.FC = () => {
                 className={`relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors ${showNotifMenu ? 'bg-slate-100' : ''}`}
               >
                 <Bell size={20} />
-                {unreadCount > 0 && (
+                {notifications.filter(n => !n.read).length > 0 && (
                   <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white">
-                    {unreadCount}
+                    {notifications.filter(n => !n.read).length}
                   </span>
                 )}
               </button>
@@ -200,10 +338,6 @@ const AppContent: React.FC = () => {
                 </div>
               )}
             </div>
-            
-            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-              <User size={20} />
-            </button>
           </div>
         </header>
 

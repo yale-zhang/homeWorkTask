@@ -14,17 +14,24 @@ export enum AssignmentCategory {
   PRACTICE = 'Daily Practice'
 }
 
+export interface UserProfile {
+  id: string; // WeChat OpenID
+  nickname: string;
+  avatar: string;
+  grade: string;
+}
+
 export interface HomeworkTask {
   id: string;
-  source: string; // e.g., "School Group 101"
+  source: string;
   subject: Subject;
   category: AssignmentCategory;
   content: string;
   deadline: string;
   status: 'pending' | 'submitted' | 'graded';
   timestamp: number;
-  submissionImage?: string; // 新增：采集时上传的原始作业图片 (Base64)
-  result?: GradingResult; // 存储 AI 批改后的详细数据
+  submissionImage?: string;
+  result?: GradingResult;
 }
 
 export interface GradingResult {
@@ -33,10 +40,10 @@ export interface GradingResult {
   strengths: string[];
   weaknesses: string[];
   detailedFeedback: string;
-  extractedText?: string; // OCR 提取的原文本
+  extractedText?: string;
   knowledgePoints: {
     point: string;
-    mastery: number; // 0-100
+    mastery: number;
   }[];
 }
 
@@ -46,7 +53,7 @@ export interface LearningTask {
   type: 'video' | 'exercise' | 'reading';
   url?: string;
   description: string;
-  completed?: boolean; // 是否已完成
+  completed?: boolean;
   metadata?: {
     duration?: string;
     questionsCount?: number;

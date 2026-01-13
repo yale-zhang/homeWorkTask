@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { HomeworkTask, AssignmentCategory, Subject } from '../types';
+import { HomeworkTask, AssignmentCategory, Subject, UserProfile } from '../types';
 import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, Calendar } from 'lucide-react';
 import { useTranslation } from '../i18n';
 
@@ -25,6 +25,12 @@ const StatCard = ({ label, value, icon: Icon, color }: { label: string, value: s
 
 const Dashboard: React.FC<Props> = ({ tasks }) => {
   const { t } = useTranslation();
+  
+  // Get active user from storage context (simplification for this component)
+  const activeUserRaw = localStorage.getItem('intellitask_current_uid');
+  const usersListRaw = localStorage.getItem('intellitask_users_list');
+  const activeUser = activeUserRaw && usersListRaw ? JSON.parse(usersListRaw).find((u: any) => u.id === activeUserRaw) : null;
+
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
@@ -62,7 +68,7 @@ const Dashboard: React.FC<Props> = ({ tasks }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-3xl font-bold text-slate-900">{t('welcome')}</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t('welcome', { name: activeUser?.nickname || 'Student' })}</h1>
         <p className="text-slate-500 mt-2">{t('pending_desc', { count: pendingCount })}</p>
       </header>
 
