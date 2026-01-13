@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { HomeworkTask } from '../types';
-import { Clock, CheckCircle2, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3 } from 'lucide-react';
 
 interface Props {
   tasks: HomeworkTask[];
@@ -95,4 +95,3 @@ const Dashboard: React.FC<Props> = ({ tasks }) => {
 };
 
 export default Dashboard;
-import { BarChart3 } from 'lucide-react';

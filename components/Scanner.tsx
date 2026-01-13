@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { geminiService } from '../services/geminiService';
 import { HomeworkTask, GradingResult } from '../types';
-import { Camera, Upload, Loader2, CheckCircle2, AlertCircle, X, ChevronRight } from 'lucide-react';
+import { Camera, Upload, Loader2, CheckCircle2, AlertCircle, X, ChevronRight, FileText, Eye } from 'lucide-react';
 
 interface Props {
   tasks: HomeworkTask[];
@@ -10,9 +11,12 @@ interface Props {
 }
 
 const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
+  const navigate = useNavigate();
   const [selectedTask, setSelectedTask] = useState<HomeworkTask | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [image, setImage] = useState<string | null>(null);
+  const [ocrPreview, setOcrPreview] = useState<string | null>(null);
   const [result, setResult] = useState<GradingResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,8 +26,23 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImage(reader.result as string);
+        setOcrPreview(null);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOcrPreview = async () => {
+    if (!image) return;
+    setIsOcrLoading(true);
+    try {
+      const base64Data = image.split(',')[1];
+      const text = await geminiService.extractTextFromImage(base64Data);
+      setOcrPreview(text);
+    } catch (error) {
+      console.error("OCR failed", error);
+    } finally {
+      setIsOcrLoading(false);
     }
   };
 
@@ -32,12 +51,12 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
     setIsScanning(true);
     try {
       const base64Data = image.split(',')[1];
+      // Trigger AI grading with Gemini 3 Pro
       const res = await geminiService.gradeSubmission(base64Data, selectedTask.content);
       
-      // 更新本地展示状态
       setResult(res);
 
-      // 同步更新到全局 tasks，实现持久化
+      // Update global state to persist the 'graded' status and result data
       onUpdateTask({
         ...selectedTask,
         status: 'graded',
@@ -45,6 +64,7 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
       });
     } catch (error) {
       console.error("Grading failed", error);
+      alert("AI Grading failed. Please check your connection or API key.");
     } finally {
       setIsScanning(false);
     }
@@ -55,14 +75,17 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
       <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in-95 duration-500">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-slate-900">Grading Analysis</h1>
-          <button onClick={() => { setResult(null); setSelectedTask(null); setImage(null); }} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium">
-            <X size={20} /> Done & Exit
+          <button 
+            onClick={() => { setResult(null); setSelectedTask(null); setImage(null); setOcrPreview(null); }} 
+            className="text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium"
+          >
+            <X size={20} /> Close
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1 bg-white p-8 rounded-2xl border border-slate-200 text-center shadow-sm">
-            <p className="text-slate-500 text-sm font-semibold mb-2">FINAL SCORE</p>
+            <p className="text-slate-500 text-sm font-semibold mb-2 uppercase tracking-wider">Final Score</p>
             <div className="text-6xl font-black text-indigo-600 mb-2">
               {result.score}<span className="text-2xl text-slate-300">/{result.totalScore}</span>
             </div>
@@ -91,6 +114,17 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
           </div>
         </div>
 
+        {result.extractedText && (
+          <div className="bg-amber-50/30 p-8 rounded-2xl border border-amber-100 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <FileText className="text-amber-600" size={22} /> Handwriting Transcript
+            </h2>
+            <div className="bg-white p-6 rounded-xl border border-slate-100 font-mono text-sm text-slate-700 whitespace-pre-wrap leading-relaxed shadow-inner">
+              {result.extractedText}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
           <h2 className="text-xl font-bold text-slate-800 mb-6">Knowledge Point Breakdown</h2>
           <div className="space-y-6">
@@ -114,10 +148,16 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
         </div>
 
         <div className="flex justify-end gap-4">
-          <button onClick={() => { setResult(null); setSelectedTask(null); setImage(null); }} className="px-6 py-3 rounded-xl border border-slate-200 font-bold hover:bg-slate-50 transition-colors">
-            Exit
+          <button 
+            onClick={() => { setResult(null); setSelectedTask(null); setImage(null); setOcrPreview(null); }} 
+            className="px-6 py-3 rounded-xl border border-slate-200 font-bold hover:bg-slate-50 transition-colors"
+          >
+            Dashboard
           </button>
-          <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 flex items-center gap-2 hover:bg-indigo-700 transition-colors">
+          <button 
+            onClick={() => navigate('/learning')}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+          >
             View Learning Plan <ChevronRight size={20} />
           </button>
         </div>
@@ -156,17 +196,17 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center rounded-lg font-bold">
                 {selectedTask.subject[0]}
               </div>
               <div>
                 <h4 className="font-bold text-slate-800 text-sm">{selectedTask.subject}</h4>
-                <p className="text-xs text-slate-500">{selectedTask.content}</p>
+                <p className="text-xs text-slate-500 truncate max-w-[200px]">{selectedTask.content}</p>
               </div>
             </div>
-            <button onClick={() => { setSelectedTask(null); setImage(null); }} className="text-slate-400 hover:text-rose-500 transition-colors p-2">
+            <button onClick={() => { setSelectedTask(null); setImage(null); setOcrPreview(null); }} className="text-slate-400 hover:text-rose-500 transition-colors p-2">
               <X size={20} />
             </button>
           </div>
@@ -180,16 +220,16 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                   <Upload size={32} />
                 </div>
-                <span className="font-bold">Upload Photo</span>
+                <span className="font-bold text-lg">Upload Photo</span>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
               </button>
 
-              <button className="aspect-square bg-white border-4 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center gap-4 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all group opacity-50 cursor-not-allowed">
+              <button className="aspect-square bg-white border-4 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center gap-4 text-slate-400 opacity-60 cursor-not-allowed">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
                   <Camera size={32} />
                 </div>
-                <span className="font-bold">Scan via Camera</span>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">(Desktop Sim Mode)</span>
+                <span className="font-bold text-lg">Direct Scan</span>
+                <span className="text-[10px] uppercase font-bold tracking-widest">(In Development)</span>
               </button>
             </div>
           ) : (
@@ -198,28 +238,52 @@ const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
                 <img src={image} alt="Submission" className="max-h-full object-contain" />
                 <button 
                   onClick={() => setImage(null)}
-                  className="absolute top-4 right-4 bg-slate-900/50 hover:bg-slate-900 text-white p-2 rounded-full transition-colors"
+                  className="absolute top-4 right-4 bg-slate-900/50 hover:bg-slate-900 text-white p-2 rounded-full transition-colors shadow-lg"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <button
-                onClick={processGrading}
-                disabled={isScanning}
-                className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:bg-slate-300"
-              >
-                {isScanning ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    <span>AI Analyzing Handwriting...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={24} />
-                    <span>Start AI Grading</span>
-                  </>
-                )}
-              </button>
+
+              {ocrPreview && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in zoom-in-95">
+                  <h5 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <FileText size={14} /> AI OCR Detection
+                  </h5>
+                  <p className="text-sm text-slate-700 font-mono italic">"{ocrPreview}"</p>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleOcrPreview}
+                  disabled={isOcrLoading || isScanning}
+                  className="flex-1 bg-white border border-slate-200 text-slate-700 py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-slate-50 transition-all disabled:opacity-50"
+                >
+                  {isOcrLoading ? (
+                    <Loader2 className="animate-spin" size={20} />
+                  ) : (
+                    <Eye size={20} />
+                  )}
+                  <span>{ocrPreview ? 'Rescan Text' : 'Quick OCR'}</span>
+                </button>
+                <button
+                  onClick={processGrading}
+                  disabled={isScanning}
+                  className="flex-[2] bg-indigo-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all disabled:bg-slate-300 disabled:shadow-none"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="animate-spin" size={24} />
+                      <span>AI Grading in Progress...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={24} />
+                      <span>Grade with Gemini Pro</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>

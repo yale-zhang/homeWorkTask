@@ -24,6 +24,7 @@ export interface GradingResult {
   strengths: string[];
   weaknesses: string[];
   detailedFeedback: string;
+  extractedText?: string; // OCR 提取的原文本
   knowledgePoints: {
     point: string;
     mastery: number; // 0-100

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Subject } from "../types";
 
@@ -5,6 +6,22 @@ import { Subject } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const geminiService = {
+  /**
+   * Extracts text from an image using Gemini Flash.
+   */
+  async extractTextFromImage(imageBuffer: string) {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
+          { text: "Act as an expert OCR engine. Extract all text from this homework submission image exactly as written, including math formulas or multi-line text. Provide only the extracted text." }
+        ]
+      }
+    });
+    return response.text || "No text could be extracted.";
+  },
+
   /**
    * Simulates parsing a chat message to extract homework details
    */
@@ -26,7 +43,6 @@ export const geminiService = {
         }
       }
     });
-    // Access .text property directly, do not call as a method
     return JSON.parse(response.text || '{}');
   },
 
@@ -41,7 +57,8 @@ export const geminiService = {
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
           { text: `Grade this homework submission based on this original assignment: "${prompt}". 
           Analyze the handwriting, identify correct and incorrect answers. 
-          Provide a score, specific strengths, weaknesses, and a knowledge point mastery breakdown (0-100%).` }
+          Also, provide a full text transcription of what was written.
+          Provide a score, specific strengths, weaknesses, the transcribed text, and a knowledge point mastery breakdown (0-100%).` }
         ]
       },
       config: {
@@ -54,6 +71,7 @@ export const geminiService = {
             strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
             weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
             detailedFeedback: { type: Type.STRING },
+            extractedText: { type: Type.STRING, description: "Full transcription of the student's work" },
             knowledgePoints: {
               type: Type.ARRAY,
               items: {
@@ -68,7 +86,6 @@ export const geminiService = {
         }
       }
     });
-    // Access .text property directly, do not call as a method
     return JSON.parse(response.text || '{}');
   },
 
@@ -100,7 +117,6 @@ export const geminiService = {
         }
       }
     });
-    // Access .text property directly, do not call as a method
     return JSON.parse(response.text || '{}');
   }
 };
