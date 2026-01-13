@@ -19,7 +19,9 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gffzkcmvsDXT4ML1eSrPHx
 3. Run the app:
    `npm run dev`
 
-**Requirements analysis**     
+ 
+## Requirements analysis   
+
   需求旨在构建一个智能作业管理系统，核心流程包括：作业采集（从QQ群）→ 存储记录 → AI批改与知识点分析 → 个性化学习计划生成 → 周度学习报告。以下是需求分解：  
 **作业监控与采集：**
 1.实时监控学校QQ群中的作业消息（文字或图片），自动解析作业内容（如学科、截止时间、要求）。  
@@ -34,7 +36,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gffzkcmvsDXT4ML1eSrPHx
 **报告生成：**  
 1.每周聚合数据，生成可视化报告（如作业完成率、知识点掌握趋势、建议调整学习计划）。  
 
-**Technology Architecture**
+
+## Technology Architecture 
 
   这个智能作业管理系统（IntelliTask AI）采用了现代前端开发中最流行且高效的技术栈，旨在通过 AI 驱动核心流程。以下是详细的技术架构解析：
 1. 核心框架与语言 (Core)
