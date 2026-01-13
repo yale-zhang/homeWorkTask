@@ -56,7 +56,44 @@ IntelliTask AI 是一款基于 Google Gemini AI 驱动的现代化智能教育�
 
 ---
 
-## 4. 开发说明
-本项目采用现代 ESM 加载方案，无需传统 Webpack/Vite 构建流程，可直接在浏览器环境中运行。
+## 4. 本地构建与部署 (Local Build & Deployment)
 
-**API 配置**: 系统依赖 `process.env.API_KEY` 进行 Gemini 服务调用。
+本项目支持通过 Docker 或传统的 Node.js 环境进行本地部署。
+
+### 方案 A：使用 Docker Compose (推荐)
+这是最简单的部署方式，只需一个命令即可完成环境搭建。
+
+1.  **准备配置文件**：
+    在项目根目录创建 `.env` 文件，填入你的 Gemini API Key：
+    ```bash
+    API_KEY=你的_GEMINI_API_KEY
+    ```
+2.  **启动服务**：
+    ```bash
+    docker-compose up --build
+    ```
+3.  **访问应用**：
+    打开浏览器访问 `http://localhost:8080`。
+
+### 方案 B：传统 Node.js 部署
+适用于需要进行代码修改和实时调试的开发场景。
+
+1.  **安装依赖**：
+    ```bash
+    npm install
+    ```
+2.  **设置环境变量**：
+    *   **Windows (PowerShell)**: `$env:API_KEY="你的_KEY"; npm run dev`
+    *   **macOS/Linux**: `export API_KEY="你的_KEY"; npm run dev`
+3.  **预览构建**：
+    ```bash
+    npm run build
+    npm run preview
+    ```
+
+---
+
+## 5. 开发说明
+本项目采用现代 ESM 加载方案，配合 Vite 进行极速构建。
+
+**API 配置**: 系统依赖 `process.env.API_KEY` 进行 Gemini 服务调用。在生产构建中，该 Key 会在构建阶段被注入到前端包中。

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  intellitask:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 这一步至关重要，将宿主机的环境变量传递给 Docker 构建过程
+        - API_KEY=${API_KEY}
+    image: intellitask-ai:latest
+    container_name: intellitask-app
+    ports:
+      - "8080:80"
+    restart: always
