@@ -1,6 +1,7 @@
+
 # IntelliTask AI - 智能作业管理系统
 
-IntelliTask AI 是一款基于 Google Gemini AI 驱动的现代化智能教育辅助平台。它旨在通过 AI 技术打通作业从“布置”到“批改”再到“个性化提升”的全链路流程，帮助学生更高效地管理学业并精准修补知识漏洞。
+IntelliTask AI 是一款基于 Google Gemini AI 驱动的现代化智能教育辅助平台。
 
 ## 1. 需求分析 (Requirement Analysis)
 
@@ -27,7 +28,67 @@ IntelliTask AI 是一款基于 Google Gemini AI 驱动的现代化智能教育�
 
 ---
 
-## 3. 功能更新记录 (Feature Updates)
+## 3. 快速开始 (Quick Start)
+
+#### 环境配置
+由于安全原因，敏感的 API 密钥不直接包含在代码中。请按照以下步骤配置：
+
+1.  在项目根目录新建一个文件，命名为 `.env`。
+2.  打开 `.env.example` 文件，将其中的内容复制到 `.env` 中。
+3.  填入你的真实密钥：
+    *   **API_KEY**: 你的 Google Gemini API Key。
+    *   **SUPABASE_URL**: 你的 Supabase 项目 URL。
+    *   **SUPABASE_KEY**: 你的 Supabase Anon Key。
+
+#### 本地运行
+```bash
+npm install
+npm run dev
+```
+
+### 2. 核心功能
+*   **作业采集**：从群聊消息或图片中提取作业任务。
+*   **AI 批改**：使用 Gemini Vision API 识别手写内容并进行逻辑批改。
+*   **学情报告**：可视化展示知识点掌握情况和周度进度趋势。
+*   **学习中心**：基于批改结果自动生成个性化的强化训练计划。
+
+### 3. Supabase 数据库结构
+请在 Supabase SQL Editor 中执行以下脚本以初始化：
+
+```sql
+-- 用户资料
+CREATE TABLE user_profiles (
+  id TEXT PRIMARY KEY,
+  nickname TEXT,
+  avatar TEXT,
+  grade TEXT
+);
+
+-- 作业任务
+CREATE TABLE homework_tasks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES user_profiles(id),
+  subject TEXT,
+  category TEXT,
+  content TEXT,
+  deadline TEXT,
+  status TEXT,
+  timestamp BIGINT,
+  submission_image TEXT,
+  result JSONB
+);
+
+-- 学习计划
+CREATE TABLE learning_plans (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES user_profiles(id),
+  focus_area TEXT,
+  tasks JSONB,
+  created_at BIGINT
+);
+```
+
+## 4. 功能更新记录 (Feature Updates)
 
 ### [V1.1] 截止日期与手动管理
 *   引入标准日期选择器，支持作业截止时间追踪。
@@ -64,24 +125,5 @@ IntelliTask AI 是一款基于 Google Gemini AI 驱动的现代化智能教育�
 
 ---
 
-## 4. 本地构建与部署 (Local Build & Deployment)
-
-### 环境要求
-*   Node.js 18+
-*   有效且配置了计费的 Google Gemini API Key
-
-### 快速开始
-1.  **安装依赖**: `npm install`
-2.  **配置环境**: 在根目录创建 `.env` 文件并填入 `API_KEY=your_key_here`
-3.  **开发模式**: `npm run dev`
-4.  **生产构建**: `npm run build`
-
-### Docker 部署
-1.  构建镜像: `docker-compose build --build-arg API_KEY=你的KEY`
-2.  启动容器: `docker-compose up -d`
-3.  访问地址: `http://localhost:8080`
-
----
-
-## 5. 免责声明 (Disclaimer)
-本项目展示的微信授权功能为模拟流程，数据仅存储于浏览器本地缓存中。建议在生产环境对接真实的微信开放平台 API。
+## 5. 免责声明
+本系统生成的批改意见和学习建议由 AI 生成，仅供辅助学习使用，请结合实际教学情况参考。
