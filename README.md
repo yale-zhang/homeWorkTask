@@ -19,7 +19,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gffzkcmvsDXT4ML1eSrPHx
 3. Run the app:
    `npm run dev`
 
-**Requirements analysis** 
+**Requirements analysis**   
 这个智能作业管理系统（IntelliTask AI）采用了现代前端开发中最流行且高效的技术栈，旨在通过 AI 驱动核心流程。以下是详细的技术架构解析：
 1. 核心框架与语言 (Core)
 React 19: 采用最新的 React 版本，利用其声明式 UI 开发模式和高效的组件化架构。
