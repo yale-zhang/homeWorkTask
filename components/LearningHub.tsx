@@ -1,0 +1,108 @@
+
+import React, { useState, useEffect } from 'react';
+import { geminiService } from '../services/geminiService';
+import { LearningPlan } from '../types';
+import { BookOpen, Video, FileText, CheckCircle2, Play, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+
+const LearningHub: React.FC = () => {
+  const [plan, setPlan] = useState<LearningPlan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPlan = async () => {
+      try {
+        // Mocking user weaknesses for the demo
+        const weaknesses = ['Quadratic Equation Factoring', 'Parabola Vertex Identification'];
+        const res = await geminiService.generatePlan(weaknesses);
+        setPlan(res);
+      } catch (error) {
+        console.error("Plan generation failed", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPlan();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 space-y-4">
+        <Loader2 className="animate-spin text-indigo-600" size={48} />
+        <p className="text-slate-500 font-medium">Building your personalized study track...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="text-indigo-600" size={20} />
+            <span className="text-sm font-bold text-indigo-600 uppercase tracking-widest">Personalized Strategy</span>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900">Your Study Plan</h1>
+          <p className="text-slate-500 mt-2">Focused on: <span className="font-semibold text-slate-800">{plan?.focusArea}</span></p>
+        </div>
+        <button className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+          Refresh Goals
+        </button>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {plan?.tasks.map((task, idx) => (
+          <div key={idx} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col shadow-sm group hover:shadow-md transition-all">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 ${
+              task.type === 'video' ? 'bg-rose-100 text-rose-600' : 
+              task.type === 'exercise' ? 'bg-indigo-100 text-indigo-600' : 'bg-amber-100 text-amber-600'
+            }`}>
+              {task.type === 'video' ? <Video size={24} /> : 
+               task.type === 'exercise' ? <FileText size={24} /> : <BookOpen size={24} />}
+            </div>
+            
+            <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors">{task.title}</h3>
+            <p className="text-sm text-slate-500 leading-relaxed mb-8 flex-1">{task.description}</p>
+            
+            <button className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all ${
+              task.type === 'video' ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-slate-50 text-slate-800 hover:bg-slate-200'
+            }`}>
+              {task.type === 'video' ? <Play size={18} /> : <CheckCircle2 size={18} />}
+              <span>{task.type === 'video' ? 'Watch Now' : 'Complete'}</span>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-8 text-white">
+        <div className="flex flex-col md:flex-row gap-8 items-center">
+          <div className="w-40 h-40 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md relative shrink-0">
+            <div className="text-center">
+              <span className="text-4xl font-black">72%</span>
+              <p className="text-[10px] uppercase font-bold text-indigo-200 tracking-tighter">Plan Progress</p>
+            </div>
+            <svg className="absolute inset-0 w-full h-full -rotate-90">
+              <circle cx="80" cy="80" r="72" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/10" />
+              <circle cx="80" cy="80" r="72" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="452.3" strokeDashoffset="126.6" className="text-white" />
+            </svg>
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="text-2xl font-bold mb-3">You're making great progress!</h3>
+            <p className="text-indigo-100 text-sm leading-relaxed mb-6 max-w-xl">
+              Consistency is key. You've mastered 3 out of 5 core concepts identified last week. Complete your current physics tasks to hit your weekly goal!
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+              <button className="bg-white text-indigo-700 px-6 py-3 rounded-xl font-bold shadow-xl shadow-indigo-900/20 flex items-center gap-2 hover:bg-indigo-50 transition-colors">
+                Continue Last Task <ArrowRight size={18} />
+              </button>
+              <button className="bg-indigo-500/50 text-white border border-indigo-400/30 px-6 py-3 rounded-xl font-bold hover:bg-indigo-500 transition-colors">
+                View Past Badges
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LearningHub;

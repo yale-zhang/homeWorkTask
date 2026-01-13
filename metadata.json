@@ -1,0 +1,7 @@
+{
+  "name": "Copy of IntelliTask AI - Smart Homework Management System",
+  "description": "An intelligent academic system that monitors group chat homework, performs AI-powered grading via OCR, analyzes knowledge gaps, and generates personalized learning plans with visual progress reports.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
