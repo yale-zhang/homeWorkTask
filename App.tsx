@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Layout, LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare } from 'lucide-react';
@@ -8,7 +9,8 @@ import LearningHub from './components/LearningHub';
 import Reports from './components/Reports';
 import { HomeworkTask } from './types';
 
-// Defining props interface and using React.FC to include standard React attributes like 'key'
+const STORAGE_KEY = 'intellitask_data_v1';
+
 interface SidebarItemProps {
   icon: any;
   label: string;
@@ -29,13 +31,35 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, path, acti
 );
 
 const App: React.FC = () => {
-  const [tasks, setTasks] = useState<HomeworkTask[]>([]);
+  // 1. 初始化时从 localStorage 加载数据
+  const [tasks, setTasks] = useState<HomeworkTask[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load data from localStorage", e);
+      return [];
+    }
+  });
+
   const [notificationCount, setNotificationCount] = useState(2);
+
+  // 2. 监听 tasks 变化，同步到 localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }, [tasks]);
+
+  const handleAddTask = (task: HomeworkTask) => {
+    setTasks(prev => [task, ...prev]);
+  };
+
+  const handleUpdateTask = (updatedTask: HomeworkTask) => {
+    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+  };
 
   return (
     <HashRouter>
       <div className="flex min-h-screen bg-slate-50">
-        {/* Sidebar */}
         <aside className="w-64 bg-white border-r border-slate-200 flex flex-col p-6 sticky top-0 h-screen">
           <div className="flex items-center gap-3 mb-10 px-2">
             <div className="bg-indigo-600 p-2 rounded-lg text-white">
@@ -61,7 +85,6 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 flex flex-col min-w-0">
           <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30">
             <h2 className="text-lg font-semibold text-slate-800">Workspace</h2>
@@ -83,8 +106,8 @@ const App: React.FC = () => {
           <div className="flex-1 p-8">
             <Routes>
               <Route path="/" element={<Dashboard tasks={tasks} />} />
-              <Route path="/inbox" element={<HomeworkInbox onNewTask={(t) => setTasks(prev => [t, ...prev])} />} />
-              <Route path="/scanner" element={<Scanner tasks={tasks} />} />
+              <Route path="/inbox" element={<HomeworkInbox onNewTask={handleAddTask} />} />
+              <Route path="/scanner" element={<Scanner tasks={tasks} onUpdateTask={handleUpdateTask} />} />
               <Route path="/learning" element={<LearningHub />} />
               <Route path="/reports" element={<Reports />} />
             </Routes>

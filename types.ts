@@ -15,6 +15,7 @@ export interface HomeworkTask {
   deadline: string;
   status: 'pending' | 'submitted' | 'graded';
   timestamp: number;
+  result?: GradingResult; // 存储 AI 批改后的详细数据
 }
 
 export interface GradingResult {

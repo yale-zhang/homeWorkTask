@@ -6,9 +6,10 @@ import { Camera, Upload, Loader2, CheckCircle2, AlertCircle, X, ChevronRight } f
 
 interface Props {
   tasks: HomeworkTask[];
+  onUpdateTask: (task: HomeworkTask) => void;
 }
 
-const Scanner: React.FC<Props> = ({ tasks }) => {
+const Scanner: React.FC<Props> = ({ tasks, onUpdateTask }) => {
   const [selectedTask, setSelectedTask] = useState<HomeworkTask | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [image, setImage] = useState<string | null>(null);
@@ -32,8 +33,16 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
     try {
       const base64Data = image.split(',')[1];
       const res = await geminiService.gradeSubmission(base64Data, selectedTask.content);
+      
+      // 更新本地展示状态
       setResult(res);
-      // Update task status in a real app here
+
+      // 同步更新到全局 tasks，实现持久化
+      onUpdateTask({
+        ...selectedTask,
+        status: 'graded',
+        result: res
+      });
     } catch (error) {
       console.error("Grading failed", error);
     } finally {
@@ -46,8 +55,8 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
       <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in-95 duration-500">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-slate-900">Grading Analysis</h1>
-          <button onClick={() => setResult(null)} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium">
-            <X size={20} /> Reset
+          <button onClick={() => { setResult(null); setSelectedTask(null); setImage(null); }} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium">
+            <X size={20} /> Done & Exit
           </button>
         </div>
 
@@ -58,7 +67,7 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
               {result.score}<span className="text-2xl text-slate-300">/{result.totalScore}</span>
             </div>
             <div className="bg-indigo-50 text-indigo-700 py-1 px-3 rounded-full text-xs font-bold inline-block">
-              {((result.score / result.totalScore) * 100).toFixed(0)}% ACCURACY
+              {((result.score / (result.totalScore || 100)) * 100).toFixed(0)}% ACCURACY
             </div>
           </div>
 
@@ -67,7 +76,7 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
               <CheckCircle2 className="text-emerald-500" size={20} /> Key Strengths
             </h3>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {result.strengths.map((s, i) => (
+              {result.strengths?.map((s, i) => (
                 <li key={i} className="text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">{s}</li>
               ))}
             </ul>
@@ -75,7 +84,7 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
               <AlertCircle className="text-rose-500" size={20} /> Areas to Improve
             </h3>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {result.weaknesses.map((w, i) => (
+              {result.weaknesses?.map((w, i) => (
                 <li key={i} className="text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">{w}</li>
               ))}
             </ul>
@@ -85,7 +94,7 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
           <h2 className="text-xl font-bold text-slate-800 mb-6">Knowledge Point Breakdown</h2>
           <div className="space-y-6">
-            {result.knowledgePoints.map((kp, i) => (
+            {result.knowledgePoints?.map((kp, i) => (
               <div key={i} className="space-y-2">
                 <div className="flex justify-between text-sm font-semibold">
                   <span className="text-slate-700">{kp.point}</span>
@@ -105,7 +114,7 @@ const Scanner: React.FC<Props> = ({ tasks }) => {
         </div>
 
         <div className="flex justify-end gap-4">
-          <button onClick={() => setResult(null)} className="px-6 py-3 rounded-xl border border-slate-200 font-bold hover:bg-slate-50 transition-colors">
+          <button onClick={() => { setResult(null); setSelectedTask(null); setImage(null); }} className="px-6 py-3 rounded-xl border border-slate-200 font-bold hover:bg-slate-50 transition-colors">
             Exit
           </button>
           <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 flex items-center gap-2 hover:bg-indigo-700 transition-colors">
