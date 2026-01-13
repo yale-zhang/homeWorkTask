@@ -1,6 +1,5 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Subject, AssignmentCategory } from "../types";
 
 // Always use process.env.API_KEY directly as per SDK guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -9,13 +8,13 @@ export const geminiService = {
   /**
    * Extracts text from an image using Gemini Flash.
    */
-  async extractTextFromImage(imageBuffer: string) {
+  async extractTextFromImage(imageBuffer: string, lang: 'en' | 'zh' = 'zh') {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
-          { text: "Act as an expert OCR engine. Extract all text from this homework submission image exactly as written, including math formulas or multi-line text. Provide only the extracted text." }
+          { text: `Act as an expert OCR engine. Extract all text from this homework submission image exactly as written. Provide only the extracted text. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
         ]
       }
     });
@@ -23,13 +22,17 @@ export const geminiService = {
   },
 
   /**
-   * Simulates parsing a chat message to extract homework details
+   * Extracts homework details from an image (e.g., photo of a textbook page or notice).
    */
-  async extractHomeworkFromMessage(message: string) {
+  async extractHomeworkFromImage(imageBuffer: string, lang: 'en' | 'zh' = 'zh') {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Extract homework details from this school chat message: "${message}". 
-      Identify Subject (Math, Science, English, History, Chinese), Deadline, Task Content, and Category (Major Grade, Quiz, Homework, or Daily Practice).`,
+      contents: {
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
+          { text: `Extract homework details from this image. Identify Subject (Math, Science, English, History, Chinese), Deadline (in YYYY-MM-DD format if possible), Task Content, and Category (Major Grade, Quiz, Homework, or Daily Practice). Translate the content into ${lang === 'zh' ? 'Chinese' : 'English'}.` }
+        ]
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -48,9 +51,35 @@ export const geminiService = {
   },
 
   /**
-   * Grades a homework submission image. Uses gemini-3-pro-preview for complex STEM grading and handwriting analysis.
+   * Simulates parsing a chat message to extract homework details
    */
-  async gradeSubmission(imageBuffer: string, prompt: string) {
+  async extractHomeworkFromMessage(message: string, lang: 'en' | 'zh' = 'zh') {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Extract homework details from this school chat message: "${message}". 
+      Identify Subject (Math, Science, English, History, Chinese), Deadline, Task Content, and Category (Major Grade, Quiz, Homework, or Daily Practice). 
+      Translate the content into ${lang === 'zh' ? 'Chinese' : 'English'}.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subject: { type: Type.STRING },
+            category: { type: Type.STRING, description: "One of: Major Grade, Quiz, Homework, Daily Practice" },
+            deadline: { type: Type.STRING },
+            content: { type: Type.STRING },
+          },
+          required: ["subject", "content", "category"]
+        }
+      }
+    });
+    return JSON.parse(response.text || '{}');
+  },
+
+  /**
+   * Grades a homework submission image.
+   */
+  async gradeSubmission(imageBuffer: string, prompt: string, lang: 'en' | 'zh' = 'zh') {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
@@ -58,7 +87,7 @@ export const geminiService = {
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
           { text: `Grade this homework submission based on this original assignment: "${prompt}". 
           Analyze the handwriting, identify correct and incorrect answers. 
-          Also, provide a full text transcription of what was written.
+          Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.
           Provide a score, specific strengths, weaknesses, the transcribed text, and a knowledge point mastery breakdown (0-100%).` }
         ]
       },
@@ -91,12 +120,15 @@ export const geminiService = {
   },
 
   /**
-   * Generates a personalized learning plan based on weaknesses. Uses gemini-3-pro-preview for advanced pedagogical reasoning.
+   * Generates a personalized learning plan based on weaknesses.
    */
-  async generatePlan(weaknesses: string[]) {
+  async generatePlan(weaknesses: string[], lang: 'en' | 'zh' = 'zh') {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `Based on these academic weaknesses: ${weaknesses.join(', ')}, generate a 3-step personalized learning plan. Include a mix of reading, exercises, and video recommendations.`,
+      contents: `Based on these academic weaknesses: ${weaknesses.join(', ')}, generate a 3-step personalized learning plan. 
+      Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.
+      Include a mix of reading, exercises, and video recommendations. 
+      For each task, provide additional metadata like 'duration' for videos, 'questionsCount' and 'difficulty' for exercises, and 'readingTime' for reading tasks.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -108,10 +140,20 @@ export const geminiService = {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  id: { type: Type.STRING, description: "A unique slug for this task" },
+                  id: { type: Type.STRING },
                   title: { type: Type.STRING },
                   type: { type: Type.STRING },
-                  description: { type: Type.STRING }
+                  description: { type: Type.STRING },
+                  metadata: {
+                    type: Type.OBJECT,
+                    properties: {
+                      duration: { type: Type.STRING },
+                      questionsCount: { type: Type.NUMBER },
+                      difficulty: { type: Type.STRING },
+                      readingTime: { type: Type.STRING },
+                      topic: { type: Type.STRING }
+                    }
+                  }
                 }
               }
             }

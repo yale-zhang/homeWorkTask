@@ -23,6 +23,7 @@ export interface HomeworkTask {
   deadline: string;
   status: 'pending' | 'submitted' | 'graded';
   timestamp: number;
+  submissionImage?: string; // 新增：采集时上传的原始作业图片 (Base64)
   result?: GradingResult; // 存储 AI 批改后的详细数据
 }
 
@@ -45,12 +46,21 @@ export interface LearningTask {
   type: 'video' | 'exercise' | 'reading';
   url?: string;
   description: string;
+  completed?: boolean; // 是否已完成
+  metadata?: {
+    duration?: string;
+    questionsCount?: number;
+    difficulty?: string;
+    readingTime?: string;
+    topic?: string;
+  };
 }
 
 export interface LearningPlan {
   id: string;
   focusArea: string;
   tasks: LearningTask[];
+  createdAt: number; 
 }
 
 export interface WeeklyStats {
