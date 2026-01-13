@@ -1,20 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# IntelliTask AI - 智能作业管理系统
 
-# Run and deploy your AI Studio app
+IntelliTask AI 是一款基于 Google Gemini AI 驱动的现代化智能教育辅助平台。它旨在通过 AI 技术打通作业从“布置”到“批改”再到“个性化提升”的全链路流程，帮助学生更高效地管理学业并精准修补知识漏洞。
 
-This contains everything you need to run your app locally.
+## 1. 需求分析 (Requirement Analysis)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1gffzkcmvsDXT4ML1eSrPHxBqmmbVkZLX
+本项目核心解决以下三个教育痛点：
 
-## Run Locally
+*   **作业采集碎片化**：家长和学生常需要从繁杂的 QQ/微信 群聊信息中手动筛选作业内容。
+*   **反馈滞后**：传统人工批改周期长，学生无法在完成作业后的第一时间获得纠错反馈。
+*   **盲目刷题**：学生往往不清楚自己的具体薄弱知识点，缺乏针对性的练习。
 
-**Prerequisites:**  Node.js
+### 核心功能流程：
+1.  **智能采集 (Inbox)**：实时监控并一键提取社交群聊中的作业任务（科目、内容、截止日期）。
+2.  **AI 视觉批改 (Scanner)**：通过手机拍摄上传作业，AI 利用多模态视觉能力进行 OCR 识别、手写体逻辑分析及打分。
+3.  **缺陷诊断 (Diagnosis)**：自动生成知识点掌握程度报告，精准定位“哪里不会”。
+4.  **闭环学习 (Learning Hub)**：基于诊断结果，AI 自动生成包含视频、练习和阅读材料的个性化提升计划。
+5.  **成长看板 (Reports)**：通过可视化图表追踪长期学习趋势。
 
+## 2. 技术架构解析 (Technical Architecture)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+系统采用全栈式 AI-Native 架构，核心技术选型如下：
+
+### 核心框架与语言
+*   **React 19**: 利用组件化架构实现流畅的单页应用 (SPA) 体验。
+*   **TypeScript**: 强类型系统确保了 AI 返回的复杂 JSON 数据在前端处理时的安全性和一致性。
+
+### AI 智能引擎
+*   **Google Gemini API (@google/genai)**:
+    *   **Gemini 3 Flash**: 用于轻量级的任务提取，平衡响应速度与处理能力。
+    *   **Gemini 3 Pro**: 负责核心的**视觉批改**与**深度逻辑推理**。它能识别复杂的数学公式、分析语境，并根据教学逻辑给出反馈。
+    *   **Structured Output**: 严格利用 JSON Schema 模式，确保 AI 的输出能直接被前端 Recharts 等组件读取并可视化。
+
+### UI/UX 表现层
+*   **Tailwind CSS**: 采用响应式设计，提供极简、专业的学术风界面。
+*   **Lucide React**: 现代化的矢量图标，提升交互直观性。
+*   **Recharts**: 实现动态的**学习趋势折线图**和**知识点掌握程度雷达图**。
+
+### 存储与权限
+*   **LocalStorage 持久化**: 通过 React 的 `useEffect` 钩子实时同步状态，确保数据在页面刷新后依然存在。
+*   **Browser Media API**: 支持摄像头调用，模拟真实的作业拍摄场景。
+
+---
+
+## 3. 开发说明
+本项目采用现代 ESM 加载方案，无需传统 Webpack/Vite 构建流程，可直接在浏览器环境中运行。
+
+**API 配置**: 系统依赖 `process.env.API_KEY` 进行 Gemini 服务调用。
