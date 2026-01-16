@@ -3,17 +3,14 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env variables instead of just those prefixed with VITE_.
+  // Load env file (not strictly necessary here) — Vite exposes variables via import.meta.env.
+  // Use variables prefixed with `VITE_` (e.g. VITE_API_KEY) in the client.
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
     plugins: [react()],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY),
-      'process.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || process.env.SUPABASE_URL),
-      'process.env.SUPABASE_KEY': JSON.stringify(env.SUPABASE_KEY || process.env.SUPABASE_KEY)
-    },
+    // Only allow VITE_ prefixed envs in the client; keep build output settings intact.
+    envPrefix: 'VITE_',
     build: {
       outDir: 'dist',
       rollupOptions: {

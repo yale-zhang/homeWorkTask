@@ -6,10 +6,25 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # 这一步至关重要，将宿主机的环境变量传递给 Docker 构建过程
-        - API_KEY=${API_KEY}
+        # Build-time args are available only during image build. Avoid passing secrets here in CI.
+        - NODE_ENV=production
     image: intellitask-ai:latest
     container_name: intellitask-app
     ports:
       - "8080:80"
-    restart: always
+    restart: unless-stopped
+    # Prefer injecting runtime configuration via environment variables or Docker secrets.
+    environment:
+      # These will be available inside the container at runtime; the entrypoint will render them
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+      - VITE_SUPABASE_KEY=${VITE_SUPABASE_KEY}
+      - VITE_API_KEY=${VITE_API_KEY}
+    # Example of using Docker secrets for more secure handling of sensitive values
+    # (requires Docker Swarm or platforms that support secrets)
+    # secrets:
+    #   - supabase_key
+
+secrets:
+  supabase_key:
+    # In local development you can point to a file: ./secrets/supabase_key.txt
+    file: ./secrets/supabase_key.txt

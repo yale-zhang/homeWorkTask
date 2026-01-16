@@ -1,16 +1,18 @@
 
 import { HomeworkTask, LearningPlan, UserProfile } from '../types';
 
-// These variables are injected at build time via vite.config.ts from your .env file
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
+// Read runtime values injected by the container entrypoint if present,
+// otherwise fall back to Vite build-time envs (import.meta.env).
+const __RUNTIME__ = (globalThis as any).__RUNTIME__ || {};
+const SUPABASE_URL = ((__RUNTIME__.VITE_SUPABASE_URL as string) || ((import.meta as any).VITE_SUPABASE_URL as string) || '');
+const SUPABASE_KEY = ((__RUNTIME__.VITE_SUPABASE_KEY as string) || ((import.meta as any).VITE_SUPABASE_KEY as string) || '');
 
 // Check if the service is actually configured. 
 // It considers configured if variables exist and are not the default placeholders.
 const isConfigured = Boolean(
-  SUPABASE_URL && 
-  SUPABASE_KEY && 
-  !SUPABASE_URL.includes('your-project-id') && 
+  SUPABASE_URL &&
+  SUPABASE_KEY &&
+  !SUPABASE_URL.includes('your-project-id') &&
   SUPABASE_KEY !== 'your-anon-key'
 );
 
