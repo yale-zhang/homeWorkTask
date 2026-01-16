@@ -58,10 +58,14 @@ jobs:
       - name: Install SSH client
         run: sudo apt-get update && sudo apt-get install -y openssh-client
 
+      - name: Add GitHub to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+
       - name: Start ssh-agent
         uses: webfactory/ssh-agent@v0.5.3
         with:
-          known_hosts: github.com
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to remote host via SSH
@@ -69,8 +73,15 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} <<EOF
+          set -euo pipefail
+          if [ -z "${DEPLOY_USER}" ] || [ -z "${DEPLOY_HOST}" ]; then
+            echo "Missing DEPLOY_USER or DEPLOY_HOST secret. Aborting."
+            exit 1
+          fi
+          ssh -o StrictHostKeyChecking=no "${DEPLOY_USER}@${DEPLOY_HOST}" <<EOF
           set -e
           mkdir -p ~/app
           cat > ~/app/.env <<EOV
