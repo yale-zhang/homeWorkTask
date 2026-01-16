@@ -61,6 +61,7 @@ jobs:
       - name: Start ssh-agent
         uses: webfactory/ssh-agent@v0.5.3
         with:
+          known_hosts: github.com
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to remote host via SSH
