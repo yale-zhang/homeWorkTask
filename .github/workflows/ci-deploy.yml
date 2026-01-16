@@ -70,11 +70,11 @@ jobs:
 
       - name: Deploy to remote host via SSH
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
-          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          VITE_SUPABASE_URL: ${{ secrets['VITE_SUPABASE_URL'] }}
+          VITE_SUPABASE_KEY: ${{ secrets['VITE_SUPABASE_KEY'] }}
+          VITE_API_KEY: ${{ secrets['VITE_API_KEY'] }}
+          DEPLOY_USER: ${{ secrets['DEPLOY_USER'] }}
+          DEPLOY_HOST: ${{ secrets['DEPLOY_HOST'] }}
         run: |
           set -euo pipefail
           if [ -z "${DEPLOY_USER}" ] || [ -z "${DEPLOY_HOST}" ]; then
