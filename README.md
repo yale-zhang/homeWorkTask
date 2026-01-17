@@ -203,7 +203,7 @@ VITE_API_KEY=your_api_key
 EOF
 
 docker compose pull
-docker compose up -d --remove-orphans
+docker compose up -d --remove-orphas
 ```
 
 - 安全提示：

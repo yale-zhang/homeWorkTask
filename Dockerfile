@@ -9,7 +9,7 @@ RUN npm ci --legacy-peer-deps || npm install
 COPY . .
 RUN npm run build
 
-FROM nginx:stable-alpine
+FROM nginx:latest
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html

@@ -11,7 +11,7 @@ services:
     image: intellitask-ai:latest
     container_name: intellitask-app
     ports:
-      - "8080:80"
+      - "8081:80"
     restart: unless-stopped
     # Prefer injecting runtime configuration via environment variables or Docker secrets.
     environment:
