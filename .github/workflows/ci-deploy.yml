@@ -53,6 +53,7 @@ jobs:
 
   deploy:
     needs: build-and-push
+    if: ${{ secrets.DEPLOY_USER && secrets.DEPLOY_HOST }}
     runs-on: ubuntu-latest
     steps:
       - name: Install SSH client
@@ -90,9 +91,9 @@ jobs:
           VITE_API_KEY=${VITE_API_KEY}
           EOV
           cd ~/app
-          docker pull ghcr.io/${{ github.repository_owner }}/intellitask-ai:latest
-          docker-compose down || true
-          docker-compose up -d --remove-orphans
+          sudo docker pull ghcr.io/${{ github.repository_owner }}/intellitask-ai:latest
+          sudo docker-compose down || true
+          sudo docker-compose up -d --remove-orphans
           EOF
 
 # Notes:
