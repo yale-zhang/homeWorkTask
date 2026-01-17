@@ -53,7 +53,6 @@ jobs:
 
   deploy:
     needs: build-and-push
-    if: ${{ secrets.DEPLOY_USER && secrets.DEPLOY_HOST }}
     runs-on: ubuntu-latest
     steps:
       - name: Install SSH client
@@ -70,6 +69,7 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to remote host via SSH
+        if: ${{ secrets.DEPLOY_USER && secrets.DEPLOY_HOST }}
         env:
           VITE_SUPABASE_URL: ${{ secrets['VITE_SUPABASE_URL'] }}
           VITE_SUPABASE_KEY: ${{ secrets['VITE_SUPABASE_KEY'] }}
