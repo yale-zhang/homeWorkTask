@@ -58,6 +58,20 @@ jobs:
       - name: Install SSH client
         run: sudo apt-get update && sudo apt-get install -y openssh-client
 
+      - name: Check deploy secrets
+        id: check-secrets
+        run: |
+          deploy_enabled=false
+          if [ -n "${{ secrets.DEPLOY_USER }}" ] && [ -n "${{ secrets.DEPLOY_HOST }}" ]; then
+            deploy_enabled=true
+          fi
+          echo "deploy_enabled=$deploy_enabled" >> $GITHUB_OUTPUT
+
+      - name: Inform missing deploy secrets
+        if: ${{ steps.check-secrets.outputs.deploy_enabled != 'true' }}
+        run: |
+          echo "DEPLOY_USER or DEPLOY_HOST secret is missing. Skipping deploy step."
+
       - name: Add GitHub to known_hosts
         run: |
           mkdir -p ~/.ssh
@@ -69,7 +83,7 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to remote host via SSH
-        if: ${{ secrets.DEPLOY_USER && secrets.DEPLOY_HOST }}
+        if: ${{ steps.check-secrets.outputs.deploy_enabled == 'true' }}
         env:
           VITE_SUPABASE_URL: ${{ secrets['VITE_SUPABASE_URL'] }}
           VITE_SUPABASE_KEY: ${{ secrets['VITE_SUPABASE_KEY'] }}
