@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, RefreshCcw, QrCode, Loader2, ChevronRight, AlertCircle, Cloud, CloudOff } from 'lucide-react';
+import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, RefreshCcw, QrCode, Loader2, ChevronRight, AlertCircle, Cloud, CloudOff, Github } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import HomeworkInbox from './components/HomeworkInbox';
 import Scanner from './components/Scanner';
@@ -33,7 +33,7 @@ const AppContent: React.FC = () => {
   const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState<'wechat' | 'github' | null>(null);
   const [showAccountCenter, setShowAccountCenter] = useState(false);
 
   // Data State
@@ -68,7 +68,6 @@ const AppContent: React.FC = () => {
           const user = users.find(u => u.id === savedUid);
           if (user) setCurrentUser(user);
         }
-        // Check connectivity by trying to ping or checking config
         setIsCloudConnected(users.length >= 0); 
       } catch (err) {
         setIsCloudConnected(false);
@@ -95,7 +94,6 @@ const AppContent: React.FC = () => {
         setIsCloudConnected(true);
       } catch (err) {
         setIsCloudConnected(false);
-        // Don't show toast on every load if not configured
         console.warn("Cloud sync currently unavailable");
       } finally {
         setIsSyncing(false);
@@ -106,7 +104,6 @@ const AppContent: React.FC = () => {
 
   const handleAddTask = async (task: HomeworkTask) => {
     if (!currentUser) return;
-    const previousTasks = [...tasks];
     setTasks(prev => [task, ...prev]);
     try {
       await apiService.upsertTask(currentUser.id, task);
@@ -142,7 +139,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleWeChatAuth = async () => {
-    setIsLoggingIn(true);
+    setIsLoggingIn('wechat');
     const mockOpenId = `wx_${Math.floor(Math.random() * 9000) + 1000}`;
     const newUser: UserProfile = {
       id: mockOpenId,
@@ -153,21 +150,51 @@ const AppContent: React.FC = () => {
 
     try {
       await apiService.syncUser(newUser);
-      setAvailableUsers(prev => [...prev, newUser]);
+      setAvailableUsers(prev => [...prev.filter(u => u.id !== newUser.id), newUser]);
       setCurrentUser(newUser);
       addNotification(`${language === 'zh' ? '欢迎' : 'Welcome'} ${newUser.nickname}`);
     } catch (err) {
-      // Fallback works even if this throws
-      setAvailableUsers(prev => [...prev, newUser]);
+      setAvailableUsers(prev => [...prev.filter(u => u.id !== newUser.id), newUser]);
       setCurrentUser(newUser);
     } finally {
-      setIsLoggingIn(false);
+      setIsLoggingIn(null);
     }
+  };
+
+  const handleGithubAuth = async () => {
+    setIsLoggingIn('github');
+    
+    // 真实场景下应使用 Supabase Auth:
+    // window.location.href = `${process.env.SUPABASE_URL}/auth/v1/authorize?provider=github`;
+    
+    // 模拟 GitHub OAuth 成功回跳行为
+    setTimeout(async () => {
+      const mockGhId = `gh_${Math.floor(Math.random() * 9000) + 1000}`;
+      const newUser: UserProfile = {
+        id: mockGhId,
+        nickname: 'GitHub_User_' + mockGhId.split('_')[1],
+        avatar: `https://avatars.githubusercontent.com/u/${Math.floor(Math.random() * 100000)}?v=4`,
+        grade: language === 'zh' ? '12年级' : 'Grade 12'
+      };
+
+      try {
+        await apiService.syncUser(newUser);
+        setAvailableUsers(prev => [...prev.filter(u => u.id !== newUser.id), newUser]);
+        setCurrentUser(newUser);
+        addNotification(`${language === 'zh' ? 'GitHub 登录成功' : 'GitHub Login Success'}`);
+      } catch (err) {
+        setAvailableUsers(prev => [...prev.filter(u => u.id !== newUser.id), newUser]);
+        setCurrentUser(newUser);
+      } finally {
+        setIsLoggingIn(null);
+      }
+    }, 1500);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setShowAccountCenter(false);
+    localStorage.removeItem(CURRENT_USER_ID_KEY);
   };
 
   if (!currentUser) {
@@ -186,17 +213,29 @@ const AppContent: React.FC = () => {
               <p className="text-slate-500 text-sm leading-relaxed">{t('login_desc')}</p>
             </div>
 
-            <div className="w-full pt-8 space-y-4">
+            <div className="w-full pt-6 space-y-3">
               <button 
                 onClick={handleWeChatAuth}
-                disabled={isLoggingIn}
-                className="w-full bg-[#07C160] hover:bg-[#06ae56] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg active:scale-95 disabled:opacity-70"
+                disabled={!!isLoggingIn}
+                className="w-full bg-[#07C160] hover:bg-[#06ae56] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg active:scale-95 disabled:opacity-70 transition-all"
               >
-                {isLoggingIn ? <Loader2 className="animate-spin" size={24} /> : <RefreshCcw size={22} />}
-                <span className="text-lg">{isLoggingIn ? t('auth_loading') : t('wechat_login')}</span>
+                {isLoggingIn === 'wechat' ? <Loader2 className="animate-spin" size={24} /> : <RefreshCcw size={22} />}
+                <span className="text-lg">{isLoggingIn === 'wechat' ? t('auth_loading') : t('wechat_login')}</span>
               </button>
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl flex items-center justify-center aspect-square max-w-[180px] mx-auto group">
-                <QrCode size={110} className="text-slate-300" />
+
+              <button 
+                onClick={handleGithubAuth}
+                disabled={!!isLoggingIn}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg active:scale-95 disabled:opacity-70 transition-all"
+              >
+                {isLoggingIn === 'github' ? <Loader2 className="animate-spin" size={24} /> : <Github size={22} />}
+                <span className="text-lg">{isLoggingIn === 'github' ? t('auth_loading') : t('github_login')}</span>
+              </button>
+
+              <div className="pt-4 flex items-center justify-center">
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center justify-center aspect-square max-w-[120px] opacity-60">
+                  <QrCode size={80} className="text-slate-300" />
+                </div>
               </div>
             </div>
           </div>
@@ -229,6 +268,7 @@ const AppContent: React.FC = () => {
                     <p className="font-bold text-slate-800 truncate">{user.nickname}</p>
                     <p className="text-xs text-slate-500">{user.grade}</p>
                   </div>
+                  {user.id.startsWith('gh_') && <Github size={14} className="text-slate-400" />}
                 </button>
               ))}
             </div>

@@ -1,11 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Read API key from Vite env. NOTE: embedding a privileged API key in the frontend
-// is insecure. Prefer moving Gemini calls to a backend proxy or serverless function.
-const __RUNTIME__ = (globalThis as any).__RUNTIME__ || {};
-const API_KEY = ((__RUNTIME__.VITE_API_KEY as string) || ((import.meta as any).VITE_API_KEY as string) || '');
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Always use process.env.API_KEY directly as per SDK guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const geminiService = {
   /**

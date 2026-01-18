@@ -20,8 +20,9 @@ const translations: Translations = {
   
   // Auth
   login_welcome: { en: 'Welcome to IntelliTask', zh: '欢迎使用 IntelliTask' },
-  login_desc: { en: 'Sign in with WeChat to sync your learning data across devices.', zh: '使用微信登录以同步您的多端学习数据。' },
+  login_desc: { en: 'Sign in to sync your learning data across devices.', zh: '登录以同步您的多端学习数据。' },
   wechat_login: { en: 'WeChat Login', zh: '微信授权登录' },
+  github_login: { en: 'Sign in with GitHub', zh: 'GitHub 账号登录' },
   switch_account: { en: 'Switch Account', zh: '切换账号' },
   logout: { en: 'Logout', zh: '退出登录' },
   auth_loading: { en: 'Authorizing...', zh: '正在授权...' },
