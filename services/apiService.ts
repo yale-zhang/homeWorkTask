@@ -64,7 +64,7 @@ const transformers = {
     focus_area: plan.focusArea,
     tasks: plan.tasks,
     created_at: plan.createdAt,
-    source_task_id: plan.sourceTaskId || null, // 映射到数据库字段
+    source_task_id: plan.sourceTaskId || null,
     source_task_title: plan.sourceTaskTitle,
     source_task_subject: plan.sourceTaskSubject,
     deep_analysis: plan.deepAnalysis || null
@@ -74,7 +74,7 @@ const transformers = {
     focusArea: dbPlan.focus_area,
     tasks: dbPlan.tasks,
     createdAt: dbPlan.created_at,
-    sourceTaskId: dbPlan.source_task_id, // 从数据库字段映射回模型
+    sourceTaskId: dbPlan.source_task_id,
     sourceTaskTitle: dbPlan.source_task_title,
     sourceTaskSubject: dbPlan.source_task_subject,
     deepAnalysis: dbPlan.deep_analysis
@@ -150,21 +150,31 @@ export const apiService = {
       await handleResponse(response, 'upsertTask');
     } catch (error) { throw error; }
   },
-  async getPlan(userId: string): Promise<LearningPlan | null> {
+  async getPlan(userId: string, taskId?: string): Promise<LearningPlan | null> {
     const config = getClientConfig();
-    if (!config.isConfigured) return LocalDB.get(`plan_${userId}`, null);
+    if (!config.isConfigured) return LocalDB.get(taskId ? `plan_${userId}_${taskId}` : `plan_${userId}_latest`, null);
     try {
-      const response = await fetch(`${config.url}/rest/v1/learning_plans?user_id=eq.${userId}&select=*&order=created_at.desc&limit=1`, { headers: getHeaders() });
+      // 如果提供了 taskId，则查询特定作业的计划，否则查询该用户最新的一条计划
+      const query = taskId ? `user_id=eq.${userId}&source_task_id=eq.${taskId}` : `user_id=eq.${userId}`;
+      const response = await fetch(`${config.url}/rest/v1/learning_plans?${query}&select=*&order=created_at.desc&limit=1`, { headers: getHeaders() });
       await handleResponse(response, 'getPlan');
       const data = await response.json();
       const plan = data.length > 0 ? transformers.dbToPlan(data[0]) : null;
-      if (plan) LocalDB.set(`plan_${userId}`, plan);
+      if (plan) {
+        LocalDB.set(taskId ? `plan_${userId}_${taskId}` : `plan_${userId}_latest`, plan);
+      }
       return plan;
-    } catch (error) { return LocalDB.get(`plan_${userId}`, null); }
+    } catch (error) { 
+      return LocalDB.get(taskId ? `plan_${userId}_${taskId}` : `plan_${userId}_latest`, null); 
+    }
   },
   async savePlan(userId: string, plan: LearningPlan): Promise<void> {
     const config = getClientConfig();
-    LocalDB.set(`plan_${userId}`, plan);
+    // 双路缓存：既存最新也存特定作业
+    LocalDB.set(`plan_${userId}_latest`, plan);
+    if (plan.sourceTaskId) {
+      LocalDB.set(`plan_${userId}_${plan.sourceTaskId}`, plan);
+    }
     if (!config.isConfigured) return;
     try {
       const payload = transformers.planToDb(plan, userId);

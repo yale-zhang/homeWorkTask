@@ -193,21 +193,21 @@ const AppContent: React.FC = () => {
       }
       
       setIsSyncing(true);
-      // 立即清理当前状态，防止“幽灵数据”闪现
+      // 清理当前状态，防止旧账号数据闪现
       setTasks([]);
       setCurrentPlan(null);
 
-      // 1. 确保全局上下文使用的 UID 是最新的
+      // 1. 更新本地 UID 保证 settingsService 能立即感知
       localStorage.setItem(CURRENT_USER_ID_KEY, currentUser.id);
       
       try {
-        // 2. 先加载并更新云端设置，确保后续请求发送到正确的后端
+        // 2. 加载云端设置
         const cloudSettings = await apiService.getCloudSettings(currentUser.id);
         if (cloudSettings) {
           settingsService.saveSettings(cloudSettings, currentUser.id);
         }
 
-        // 3. 获取该账号下的任务和计划
+        // 3. 并行获取该账号下的任务和计划
         const [userTasks, userPlan] = await Promise.all([
           apiService.getTasks(currentUser.id),
           apiService.getPlan(currentUser.id)
@@ -217,9 +217,9 @@ const AppContent: React.FC = () => {
         setCurrentPlan(userPlan || null);
         setIsCloudConnected(true);
       } catch (err) {
-        console.error("Failed to switch user context and load data:", err);
+        console.error("Failed to load account data:", err);
         setIsCloudConnected(false);
-        // 加载失败时至少显示本地缓存
+        // 回退到本地缓存
         const localTasks = await apiService.getTasks(currentUser.id);
         const localPlan = await apiService.getPlan(currentUser.id);
         setTasks(localTasks || []);
@@ -229,10 +229,9 @@ const AppContent: React.FC = () => {
       }
     };
     loadUserData();
-  }, [currentUser?.id]); // 显式使用 id 作为依赖
+  }, [currentUser?.id]);
 
   const handleAccountSwitch = (user: UserProfile) => {
-    // 同步更新本地 UID 保证 settingsService 能立即感知
     localStorage.setItem(CURRENT_USER_ID_KEY, user.id);
     setCurrentUser(user);
     setShowAccountCenter(false);
@@ -414,7 +413,7 @@ const AppContent: React.FC = () => {
         {/* 重要：添加 key={currentUser.id} 强制在账号切换时重置所有子组件状态 */}
         <div className="flex-1 p-8 overflow-y-auto" key={currentUser.id}>
           <Routes>
-            <Route path="/" element={<Dashboard tasks={tasks} />} />
+            <Route path="/" element={<Dashboard user={currentUser} tasks={tasks} />} />
             <Route path="/inbox" element={<HomeworkInbox onNewTask={async (t) => {
               setTasks(prev => [t, ...prev]);
               await apiService.upsertTask(currentUser.id, t);

@@ -5,6 +5,7 @@ import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, C
 import { useTranslation } from '../i18n';
 
 interface Props {
+  user: UserProfile;
   tasks: HomeworkTask[];
 }
 
@@ -23,14 +24,9 @@ const StatCard = ({ label, value, icon: Icon, color }: { label: string, value: s
   </div>
 );
 
-const Dashboard: React.FC<Props> = ({ tasks }) => {
+const Dashboard: React.FC<Props> = ({ user, tasks }) => {
   const { t } = useTranslation();
   
-  // Get active user from storage context (simplification for this component)
-  const activeUserRaw = localStorage.getItem('intellitask_current_uid');
-  const usersListRaw = localStorage.getItem('intellitask_users_list');
-  const activeUser = activeUserRaw && usersListRaw ? JSON.parse(usersListRaw).find((u: any) => u.id === activeUserRaw) : null;
-
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
@@ -68,7 +64,7 @@ const Dashboard: React.FC<Props> = ({ tasks }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-3xl font-bold text-slate-900">{t('welcome', { name: activeUser?.nickname || 'Student' })}</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t('welcome', { name: user.nickname || 'Student' })}</h1>
         <p className="text-slate-500 mt-2">{t('pending_desc', { count: pendingCount })}</p>
       </header>
 
