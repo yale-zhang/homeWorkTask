@@ -1,36 +1,65 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { AIProvider, AppSettings } from "../types";
+import { settingsService } from "./settingsService";
 
-// Always use process.env.API_KEY directly as per SDK guidelines
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = () => {
+  const settings = settingsService.getSettings();
+  const apiKey = settings.geminiApiKey || process.env.API_KEY;
+  return new GoogleGenAI({ apiKey });
+};
+
+async function callDeepSeek(prompt: string, systemInstruction: string, jsonResponse: boolean = false) {
+  const settings = settingsService.getSettings();
+  const response = await fetch(`${settings.deepseekBaseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${settings.deepseekApiKey}`
+    },
+    body: JSON.stringify({
+      model: settings.deepseekModel,
+      messages: [
+        { role: 'system', content: systemInstruction + (jsonResponse ? " Respond ONLY with a valid JSON object." : "") },
+        { role: 'user', content: prompt }
+      ],
+      response_format: jsonResponse ? { type: 'json_object' } : undefined
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || 'DeepSeek API error');
+  }
+
+  const data = await response.json();
+  const text = data.choices[0].message.content;
+  return jsonResponse ? JSON.parse(text) : text;
+}
 
 export const geminiService = {
-  /**
-   * Extracts text from an image using Gemini Flash.
-   */
   async extractTextFromImage(imageBuffer: string, lang: 'en' | 'zh' = 'zh') {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
-          { text: `Act as an expert OCR engine. Extract all text from this homework submission image exactly as written. Provide only the extracted text. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
+          { text: `Act as an expert OCR engine. Extract all text from this homework submission image exactly as written. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
         ]
       }
     });
     return response.text || "No text could be extracted.";
   },
 
-  /**
-   * Extracts homework details from an image (e.g., photo of a textbook page or notice).
-   */
   async extractHomeworkFromImage(imageBuffer: string, lang: 'en' | 'zh' = 'zh') {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
-          { text: `Extract homework details from this image. Identify Subject (Math, Science, English, History, Chinese), Deadline (in YYYY-MM-DD format if possible), Task Content, and Category (Major Grade, Quiz, Homework, or Daily Practice). Translate the content into ${lang === 'zh' ? 'Chinese' : 'English'}.` }
+          { text: `Extract homework details. Create a title. Identify Subject, Deadline, Content, and Category. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
         ]
       },
       config: {
@@ -38,57 +67,57 @@ export const geminiService = {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            title: { type: Type.STRING },
             subject: { type: Type.STRING },
-            category: { type: Type.STRING, description: "One of: Major Grade, Quiz, Homework, Daily Practice" },
+            category: { type: Type.STRING },
             deadline: { type: Type.STRING },
             content: { type: Type.STRING },
           },
-          required: ["subject", "content", "category"]
+          required: ["title", "subject", "content", "category"]
         }
       }
     });
     return JSON.parse(response.text || '{}');
   },
 
-  /**
-   * Simulates parsing a chat message to extract homework details
-   */
   async extractHomeworkFromMessage(message: string, lang: 'en' | 'zh' = 'zh') {
+    const settings = settingsService.getSettings();
+    const prompt = `Extract homework from: "${message}". Create a title. Identify Subject, Deadline, Content, and Category. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.`;
+
+    if (settings.aiProvider === AIProvider.DEEPSEEK) {
+      return await callDeepSeek(prompt, "Return a JSON object with title, subject, category, deadline, content.", true);
+    }
+
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Extract homework details from this school chat message: "${message}". 
-      Identify Subject (Math, Science, English, History, Chinese), Deadline, Task Content, and Category (Major Grade, Quiz, Homework, or Daily Practice). 
-      Translate the content into ${lang === 'zh' ? 'Chinese' : 'English'}.`,
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            title: { type: Type.STRING },
             subject: { type: Type.STRING },
-            category: { type: Type.STRING, description: "One of: Major Grade, Quiz, Homework, Daily Practice" },
+            category: { type: Type.STRING },
             deadline: { type: Type.STRING },
             content: { type: Type.STRING },
           },
-          required: ["subject", "content", "category"]
+          required: ["title", "subject", "content", "category"]
         }
       }
     });
     return JSON.parse(response.text || '{}');
   },
 
-  /**
-   * Grades a homework submission image.
-   */
   async gradeSubmission(imageBuffer: string, prompt: string, lang: 'en' | 'zh' = 'zh') {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
-          { text: `Grade this homework submission based on this original assignment: "${prompt}". 
-          Analyze the handwriting, identify correct and incorrect answers. 
-          Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.
-          Provide a score, specific strengths, weaknesses, the transcribed text, and a knowledge point mastery breakdown (0-100%).` }
+          { text: `Grade this homework based on: "${prompt}". Provide score, strengths, weaknesses, feedback, and knowledge mastery levels. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
         ]
       },
       config: {
@@ -101,15 +130,11 @@ export const geminiService = {
             strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
             weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
             detailedFeedback: { type: Type.STRING },
-            extractedText: { type: Type.STRING, description: "Full transcription of the student's work" },
             knowledgePoints: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: {
-                  point: { type: Type.STRING },
-                  mastery: { type: Type.NUMBER }
-                }
+                properties: { point: { type: Type.STRING }, mastery: { type: Type.NUMBER } }
               }
             }
           }
@@ -119,22 +144,44 @@ export const geminiService = {
     return JSON.parse(response.text || '{}');
   },
 
-  /**
-   * Generates a personalized learning plan based on weaknesses.
-   */
   async generatePlan(weaknesses: string[], lang: 'en' | 'zh' = 'zh') {
+    const settings = settingsService.getSettings();
+    const prompt = `你是一位世界顶级的教育心理学家和资深特级教师（S-Tier Educator）。
+    
+    已知学生在最近的作业中表现出以下知识漏洞：${weaknesses.join(', ')}。
+    
+    请执行以下深度分析并制定个性化学习路径：
+    
+    1. **深度学情剖析 (deepAnalysis)**：
+       - 要求：字数不少于 600 字。
+       - 内容：深入挖掘这些知识点之间的内在联系。分析学生之所以产生这些漏洞的潜在原因（如基础概念混淆、逻辑断层等）。阐述如果不及时修补这些漏洞，对未来更高级别学习的长远负面影响。给出针对性的教育心理学层面的建议，鼓励学生并提供学习方法论（如费曼技巧、错题本策略等）。
+       
+    2. **核心目标设定 (focusArea)**：
+       - 用一句话精准概括本次学习路径的核心突破点。
+       
+    3. **自适应学习任务 (tasks)**：
+       - 创建 3-5 个高质量、阶梯式的任务。
+       - 阶段划分为：基础加固、进阶练习、巅峰挑战。
+       - 每个任务必须包含详细的 description（指导学生如何去学习，具体到思考维度）。
+
+    请使用 ${lang === 'zh' ? '中文' : '英文'} 回答。必须返回 JSON 格式，且 tasks 数组不能为空。`;
+
+    if (settings.aiProvider === AIProvider.DEEPSEEK) {
+      const system = "你是一位极具洞察力的教育专家。你生成的分析内容应当深刻、专业、且篇幅宏大（Verbosity Level: High）。确保 deepAnalysis 字段内容丰富且逻辑严密。";
+      return await callDeepSeek(prompt, system, true);
+    }
+
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Based on these academic weaknesses: ${weaknesses.join(', ')}, generate a 3-step personalized learning plan. 
-      Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.
-      Include a mix of reading, exercises, and video recommendations. 
-      For each task, provide additional metadata like 'duration' for videos, 'questionsCount' and 'difficulty' for exercises, and 'readingTime' for reading tasks.`,
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             focusArea: { type: Type.STRING },
+            deepAnalysis: { type: Type.STRING },
             tasks: {
               type: Type.ARRAY,
               items: {
@@ -148,19 +195,23 @@ export const geminiService = {
                     type: Type.OBJECT,
                     properties: {
                       duration: { type: Type.STRING },
-                      questionsCount: { type: Type.NUMBER },
                       difficulty: { type: Type.STRING },
-                      readingTime: { type: Type.STRING },
                       topic: { type: Type.STRING }
                     }
                   }
-                }
+                },
+                required: ["title", "type", "description"]
               }
             }
-          }
+          },
+          required: ["focusArea", "tasks", "deepAnalysis"]
         }
       }
     });
-    return JSON.parse(response.text || '{}');
+    const parsed = JSON.parse(response.text || '{}');
+    if (!parsed.tasks || !Array.isArray(parsed.tasks)) {
+      parsed.tasks = [];
+    }
+    return parsed;
   }
 };

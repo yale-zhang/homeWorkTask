@@ -14,8 +14,23 @@ export enum AssignmentCategory {
   PRACTICE = 'Daily Practice'
 }
 
+export enum AIProvider {
+  GEMINI = 'gemini',
+  DEEPSEEK = 'deepseek'
+}
+
+export interface AppSettings {
+  aiProvider: AIProvider;
+  geminiApiKey?: string;
+  deepseekApiKey: string;
+  deepseekBaseUrl: string;
+  deepseekModel: string;
+  supabaseUrl: string;
+  supabaseKey: string;
+}
+
 export interface UserProfile {
-  id: string; // WeChat OpenID
+  id: string; // WeChat OpenID or GitHub ID
   nickname: string;
   avatar: string;
   grade: string;
@@ -23,6 +38,7 @@ export interface UserProfile {
 
 export interface HomeworkTask {
   id: string;
+  title: string;
   source: string;
   subject: Subject;
   category: AssignmentCategory;
@@ -66,8 +82,12 @@ export interface LearningTask {
 export interface LearningPlan {
   id: string;
   focusArea: string;
+  deepAnalysis?: string;
   tasks: LearningTask[];
-  createdAt: number; 
+  createdAt: number;
+  sourceTaskId?: string; // 新增：关联的具体作业 ID
+  sourceTaskTitle?: string;
+  sourceTaskSubject?: string;
 }
 
 export interface WeeklyStats {

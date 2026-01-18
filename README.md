@@ -12,26 +12,11 @@
     ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
     ALTER TABLE homework_tasks DISABLE ROW LEVEL SECURITY;
     ALTER TABLE learning_plans DISABLE ROW LEVEL SECURITY;
+    ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
     ```
 3.  **检查控制台**：打开浏览器开发者工具 (F12) -> Console。现在的代码会详细打印 Supabase 返回的报错信息。
 
-## 2. GitHub 授权登录配置
-
-如果你想在生产环境启用真实的 GitHub 登录：
-
-1.  **GitHub 设置**：前往 [GitHub Developer Settings](https://github.com/settings/developers) 创建一个新的 OAuth App。
-    *   **Homepage URL**: 你的应用 URL。
-    *   **Authorization callback URL**: `https://你的项目ID.supabase.co/auth/v1/callback`
-2.  **Supabase 设置**：
-    *   进入 Supabase Dashboard -> Authentication -> Providers。
-    *   找到 GitHub，填入 `Client ID` 和 `Client Secret`。
-3.  **代码调用**：
-    在 `App.tsx` 的 `handleGithubAuth` 中，将模拟逻辑替换为：
-    ```ts
-    window.location.href = `${process.env.SUPABASE_URL}/auth/v1/authorize?provider=github`;
-    ```
-
-## 3. Supabase 数据库结构初始化
+## 2. Supabase 数据库结构初始化
 
 在 Supabase **SQL Editor** 中运行以下脚本：
 
@@ -54,6 +39,7 @@ CREATE TABLE IF NOT EXISTS homework_tasks (
   content TEXT,
   deadline TEXT,
   status TEXT,
+  title TEXT,
   timestamp BIGINT,
   submission_image TEXT,
   result JSONB
@@ -63,21 +49,25 @@ CREATE TABLE IF NOT EXISTS homework_tasks (
 CREATE TABLE IF NOT EXISTS learning_plans (
   id TEXT PRIMARY KEY,
   user_id TEXT REFERENCES user_profiles(id) ON DELETE CASCADE,
+  source_task_id TEXT, -- 新增：关联的具体作业 ID
   focus_area TEXT,
   tasks JSONB,
+  deep_analysis TEXT, -- 新增：存储深度分析文本
+  source_task_title TEXT,
+  source_task_subject TEXT,
   created_at BIGINT
+);
+
+-- 4. 应用设置 (用于持久化 AI 服务商, API 密钥等)
+CREATE TABLE IF NOT EXISTS app_settings (
+  id TEXT PRIMARY KEY REFERENCES user_profiles(id) ON DELETE CASCADE,
+  settings JSONB NOT NULL,
+  updated_at BIGINT
 );
 
 -- 重要：开发阶段关闭安全策略以允许 API 写入
 ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE homework_tasks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_plans DISABLE ROW LEVEL SECURITY;
-```
-
-## 4. 环境配置
-创建 `.env` 文件：
-```env
-API_KEY=你的GeminiKey
-SUPABASE_URL=https://你的项目ID.supabase.co
-SUPABASE_KEY=你的AnonKey
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
 ```
