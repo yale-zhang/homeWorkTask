@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AIProvider } from "../types";
+import { AIProvider, AcademicEvent, HomeworkTask } from "../types";
 import { settingsService } from "./settingsService";
 
 /**
@@ -160,7 +160,7 @@ export const geminiService = {
   // Upgrade to gemini-3-pro-preview and enable thinking budget for high-quality pedagogical analysis and planning.
   async generatePlan(weaknesses: string[], lang: 'en' | 'zh' = 'zh') {
     const settings = settingsService.getSettings();
-    const prompt = `你是一位世界顶级的教育心理学家和资深特级教师（S-Tier Educator）。
+    const prompt = `你是一位世界顶级的教育心理学家 and 资深特级教师 (S-Tier Educator).
     
     已知学生在最近的作业中表现出以下知识漏洞：${weaknesses.join(', ')}。
     
@@ -168,20 +168,18 @@ export const geminiService = {
     
     1. **深度学情剖析 (deepAnalysis)**：
        - 要求：字数不少于 600 字。
-       - 内容：深入挖掘这些知识点之间的内在联系。分析学生之所以产生 these 漏洞的潜在原因（如基础概念混淆、逻辑断层等）。阐述如果不及时修补这些漏洞，对未来更高级别学习的长远负面影响。给出针对性的教育心理学层面的建议，鼓励学生并提供学习方法论（如费曼技巧、错题本策略等）。
+       - 内容：深入挖掘这些知识点之间的内在联系。分析学生产生漏洞的潜在原因。阐述如果不及时修补对未来的长远负面影响。给出针对性的教育心理学建议，鼓励学生并提供学习方法论。
        
     2. **核心目标设定 (focusArea)**：
        - 用一句话精准概括本次学习路径的核心突破点。
        
     3. **自适应学习任务 (tasks)**：
-       - 创建 3-5 个高质量、阶梯式的任务。
-       - 阶段划分为：基础加固、进阶练习、巅峰挑战。
-       - 每个任务必须包含详细的 description（指导学生如何去学习，具体到思考维度）。
+       - 创建 3-5 个阶梯式任务。划分基础加固、进阶练习、巅峰挑战。每个任务包含详细 description。
 
-    请使用 ${lang === 'zh' ? '中文' : '英文'} 回答。必须返回 JSON 格式，且 tasks 数组不能为空。`;
+    请使用 ${lang === 'zh' ? '中文' : '英文'} 回答。必须返回 JSON 格式。`;
 
     if (settings.aiProvider === AIProvider.DEEPSEEK) {
-      const system = "你是一位极具洞察力的教育专家。你生成的分析内容应当深刻、专业、且篇幅宏大（Verbosity Level: High）。确保 deepAnalysis 字段内容丰富且逻辑严密。";
+      const system = "你是一位极具洞察力的教育专家。确保内容深刻且篇幅宏大。";
       return await callDeepSeek(prompt, system, true);
     }
 
@@ -190,7 +188,7 @@ export const geminiService = {
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
-        thinkingConfig: { thinkingBudget: 4000 }, // Enable reasoning for detailed pedagogical output.
+        thinkingConfig: { thinkingBudget: 4000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -214,19 +212,34 @@ export const geminiService = {
                       topic: { type: Type.STRING }
                     }
                   }
-                },
-                required: ["title", "type", "description"]
+                }
               }
             }
-          },
-          required: ["focusArea", "tasks", "deepAnalysis"]
+          }
         }
       }
     });
-    const parsed = JSON.parse(response.text || '{}');
-    if (!parsed.tasks || !Array.isArray(parsed.tasks)) {
-      parsed.tasks = [];
-    }
-    return parsed;
+    return JSON.parse(response.text || '{}');
+  },
+
+  async generateMilestoneAdvice(event: AcademicEvent, previousTasks: HomeworkTask[], lang: 'en' | 'zh' = 'zh') {
+    const ai = getAiClient();
+    const taskSummary = previousTasks.map(t => `- ${t.title}: Score ${t.result?.score}/${t.result?.totalScore}. Gaps: ${t.result?.weaknesses?.join(', ') || 'None'}`).join('\n');
+    
+    const prompt = `You are a high-stakes exam coach. Provide a custom prep strategy for the upcoming milestone: "${event.title}" (${event.type}).
+    
+    Based on the PREVIOUS STAGE performance:
+    ${taskSummary || 'No data available from the previous stage.'}
+    
+    The strategy should follow the flow: Daily Homework -> Weekly Quiz -> Monthly Test -> Midterm/Final.
+    Provide actionable steps, focus areas, and psychological encouragement.
+    
+    Respond in ${lang === 'zh' ? 'Chinese' : 'English'}. Format as a concise, high-impact report.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+    return response.text || "No strategy generated.";
   }
 };

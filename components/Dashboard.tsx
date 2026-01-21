@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HomeworkTask, AssignmentCategory, Subject, UserProfile } from '../types';
-// Add ChevronRight to the list of imports from lucide-react
-import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, Calendar, ChevronRight } from 'lucide-react';
+import { HomeworkTask, Subject, UserProfile, AcademicEvent, EventType, EventNode } from '../types';
+import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, Calendar, ChevronRight, GraduationCap, CalendarDays, UserRound, Sparkles, School, Target, Zap, Info, TrendingUp } from 'lucide-react';
 import { useTranslation } from '../i18n';
+import { settingsService } from '../services/settingsService';
 
 interface Props {
   user: UserProfile;
@@ -12,67 +12,87 @@ interface Props {
 }
 
 const StatCard = ({ label, value, icon: Icon, color }: { label: string, value: string, icon: any, color: string }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-xl ${color}`}>
+      <div className={`p-3 rounded-2xl ${color} shadow-lg shadow-current/10`}>
         <Icon size={22} className="text-white" />
       </div>
-      <span className="text-emerald-500 text-xs font-bold flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-full">
-        <ArrowUpRight size={14} /> +12%
+      <span className="text-emerald-500 text-[10px] font-black flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-tighter">
+        <ArrowUpRight size={12} /> +12%
       </span>
     </div>
-    <p className="text-slate-500 text-sm font-medium">{label}</p>
-    <h3 className="text-2xl font-bold text-slate-800 mt-1">{value}</h3>
+    <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{label}</p>
+    <h3 className="text-2xl font-black text-slate-800 mt-1">{value}</h3>
   </div>
 );
 
 const Dashboard: React.FC<Props> = ({ user, tasks }) => {
-  // Extract language from useTranslation to use it for conditional text rendering
   const { t, language } = useTranslation();
   const navigate = useNavigate();
+  const settings = settingsService.getSettings();
   
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('');
+
+  // Find user's school and milestones
+  const userSchool = settings.schools.find(s => s.name === user.school);
+  const userMilestones = useMemo(() => {
+    if (!userSchool) return [];
+    return settings.eventNodes
+      .filter(n => n.schoolId === userSchool.id)
+      .sort((a, b) => a.order - b.order);
+  }, [settings.eventNodes, userSchool]);
+
+  const countByCategory = (catName: string) => tasks.filter(tk => tk.category === catName).length;
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
   const gradedCount = tasks.filter(t => t.status === 'graded').length;
 
-  const getCategoryColor = (category: AssignmentCategory) => {
-    switch (category) {
-      case AssignmentCategory.MAJOR_GRADE: return 'bg-rose-50 text-rose-600 border-rose-100';
-      case AssignmentCategory.QUIZ: return 'bg-amber-50 text-amber-600 border-amber-100';
-      case AssignmentCategory.HOMEWORK: return 'bg-indigo-50 text-indigo-600 border-indigo-100';
-      case AssignmentCategory.PRACTICE: return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+  const getEventIcon = (type: EventType) => {
+    switch(type) {
+      case EventType.HOMEWORK: return <Clock size={16} />;
+      case EventType.WEEKLY_QUIZ: return <Target size={16} />;
+      case EventType.MONTHLY_TEST: return <Zap size={16} />;
+      case EventType.MIDTERM: case EventType.FINAL: return <GraduationCap size={16} />;
+      default: return <Calendar size={16} />;
     }
   };
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
-      const matchesSubject = subjectFilter === 'all' || task.subject === subjectFilter;
-      const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
-      const matchesDate = !dateFilter || task.deadline.includes(dateFilter) || task.deadline === dateFilter;
-      return matchesSubject && matchesCategory && matchesDate;
-    });
-  }, [tasks, subjectFilter, categoryFilter, dateFilter]);
-
-  const clearFilters = () => {
-    setSubjectFilter('all');
-    setCategoryFilter('all');
-    setDateFilter('');
-  };
-
-  const isFiltered = subjectFilter !== 'all' || categoryFilter !== 'all' || dateFilter !== '';
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header>
-        <h1 className="text-3xl font-bold text-slate-900">{t('welcome', { name: user.nickname || 'Student' })}</h1>
-        <p className="text-slate-500 mt-2">{t('pending_desc', { count: pendingCount })}</p>
-      </header>
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      {/* Student Profile Header */}
+      <section className="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-900/20">
+        <div className="absolute top-0 right-0 p-12 opacity-10"><GraduationCap size={180} /></div>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="flex items-start sm:items-center gap-6">
+            <div className="relative shrink-0">
+              <img src={user.avatar} className="w-24 h-24 rounded-3xl border-4 border-white/10 shadow-xl object-cover" alt="" />
+              <div className="absolute -bottom-2 -right-2 bg-indigo-500 text-white p-2 rounded-xl shadow-lg border-2 border-slate-900">
+                <Sparkles size={16} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-black tracking-tight">{user.nickname}</h1>
+                <span className="bg-indigo-50/20 text-indigo-300 border border-indigo-50/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">{user.grade}</span>
+                {user.school && (
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 uppercase tracking-widest">
+                    <School size={12} /> {user.school}
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-400 text-sm font-medium">{language === 'zh' ? '欢迎回来，开始今天的学习之旅吧。' : 'Welcome back, let\'s start today\'s journey.'}</p>
+            </div>
+          </div>
+          <div className="lg:w-72 space-y-3 bg-white/5 backdrop-blur-md p-6 rounded-3xl border border-white/10">
+             <div className="flex justify-between items-end"><span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('semester_progress')}</span><span className="text-lg font-black text-indigo-400">65%</span></div>
+             <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 w-[65%] rounded-full"></div></div>
+             <p className="text-[10px] text-slate-500 font-bold uppercase">{t('pending_desc', { count: pendingCount })}</p>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard label={t('stat_pending')} value={pendingCount.toString()} icon={Clock} color="bg-amber-500" />
         <StatCard label={t('stat_completed')} value={gradedCount.toString()} icon={CheckCircle2} color="bg-emerald-500" />
         <StatCard label={t('stat_avg_score')} value="88%" icon={BarChart3} color="bg-indigo-500" />
@@ -80,121 +100,56 @@ const Dashboard: React.FC<Props> = ({ user, tasks }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-xl font-bold text-slate-800">{t('recent_assignments')}</h2>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <select 
-                  value={subjectFilter}
-                  onChange={(e) => setSubjectFilter(e.target.value)}
-                  className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                >
-                  <option value="all">{t('all_subjects')}</option>
-                  {Object.values(Subject).map(s => <option key={s} value={s}>{t(s)}</option>)}
-                </select>
-                <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
-
-              <div className="relative">
-                <select 
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                >
-                  <option value="all">{t('all_categories')}</option>
-                  {Object.values(AssignmentCategory).map(c => <option key={c} value={c}>{t(c)}</option>)}
-                </select>
-                <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
-
-              <div className="relative">
-                <input 
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm min-w-[130px]"
-                />
-              </div>
-
-              {isFiltered && (
-                <button 
-                  onClick={clearFilters}
-                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-bold uppercase"
-                >
-                  <X size={14} /> {t('clear_filters')}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Dynamic Milestones Section */}
+          <section className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm">
+            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-8">
+               <TrendingUp size={20} className="text-indigo-600" /> {t('upcoming_milestones')}
+            </h2>
+            <div className="relative flex items-center justify-between px-4 pb-12">
+              <div className="absolute left-4 right-4 h-1 bg-slate-100 top-[20px] z-0"></div>
+              {userMilestones.length > 0 ? userMilestones.map((node) => (
+                <button key={node.id} onClick={() => navigate('/exams')} className="relative z-10 flex flex-col items-center group">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all bg-white border-2 border-slate-100 text-slate-400 group-hover:border-indigo-400 group-hover:text-indigo-600 shadow-sm`}>
+                    {getEventIcon(node.type)}
+                  </div>
+                  <div className="mt-3 flex flex-col items-center">
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-tighter text-center">{node.name}</span>
+                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 rounded-full mt-1">{countByCategory(node.name)}</span>
+                  </div>
                 </button>
+              )) : (
+                <div className="w-full text-center py-4 text-slate-400 text-xs italic">{t('no_nodes_yet')}</div>
               )}
             </div>
-          </div>
-          
-          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-sm">
-            {filteredTasks.length > 0 ? filteredTasks.slice(0, 8).map((task) => (
-              <div 
-                key={task.id} 
-                onClick={() => navigate(`/scanner/${task.id}`)}
-                className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-all cursor-pointer group active:scale-[0.995]"
-              >
-                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
-                  {t(task.subject)[0]}
-                </div>
+          </section>
+
+          {/* Recent List */}
+          <div className="bg-white rounded-[2rem] border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-sm">
+            <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-black text-slate-800 flex items-center gap-2 uppercase text-xs tracking-widest"><Target size={16} className="text-indigo-600" /> {t('recent_assignments')}</h3>
+              <button onClick={() => navigate('/scanner')} className="text-[10px] font-black text-indigo-600 hover:underline">{language === 'zh' ? '查看全部' : 'View All'}</button>
+            </div>
+            {tasks.slice(0, 5).map(task => (
+              <div key={task.id} className="p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/scanner/${task.id}`)}>
+                <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-slate-400">{t(task.subject)[0]}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <h4 className="font-semibold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{t(task.subject)}</h4>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${getCategoryColor(task.category)}`}>
-                      {t(task.category)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-500 line-clamp-1">{task.content}</p>
+                  <h4 className="font-bold text-slate-800 truncate">{task.title}</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">{task.category}</p>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${
-                    task.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {task.status}
-                  </span>
-                  <p className="text-xs text-slate-400 mt-1 flex items-center justify-end gap-1">
-                    <Calendar size={10} /> {task.deadline}
-                  </p>
-                </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2">
-                  <ChevronRight size={16} className="text-indigo-400" />
-                </div>
+                <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${task.status === 'graded' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{task.status}</div>
               </div>
-            )) : (
-              <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
-                <div className="p-3 bg-slate-50 rounded-full text-slate-300">
-                  <Filter size={24} />
-                </div>
-                <p className="font-medium">{t('no_tasks')}</p>
-                <button 
-                  onClick={clearFilters}
-                  className="text-indigo-600 text-sm font-bold hover:underline"
-                >
-                  {t('clear_filters')}
-                </button>
-              </div>
-            )}
+            ))}
           </div>
         </div>
 
+        {/* Quick Tips */}
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-slate-800">{t('Learning Hub')}</h2>
-          <div className="bg-indigo-600 rounded-2xl p-6 text-white relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="font-bold text-lg mb-2">{t('Mathematics')}</h3>
-              <p className="text-indigo-100 text-sm leading-relaxed mb-4">
-                {language === 'zh' ? '基于最近的批改结果，我们将重点攻克代数薄弱点。' : 'Focus on your Algebra weaknesses based on recent grades.'}
-              </p>
-              <button 
-                onClick={() => navigate('/learning')}
-                className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-50 transition-colors"
-              >
-                {t('view_plan')}
-              </button>
-            </div>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-8 opacity-20 rotate-12"><Sparkles size={100} /></div>
+             <h3 className="text-xl font-black mb-2">{language === 'zh' ? '备考建议' : 'Prep Strategy'}</h3>
+             <p className="text-indigo-100 text-sm mb-6 leading-relaxed opacity-80">{language === 'zh' ? '点击里程碑可进入考试中心，查看 AI 针对您过往表现生成的专属提分策略。' : 'Click milestones to access AI strategies based on your past performance.'}</p>
+             <button onClick={() => navigate('/exams')} className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-md py-4 rounded-2xl font-black text-sm transition-all">{t('nav_exams')}</button>
           </div>
         </div>
       </div>

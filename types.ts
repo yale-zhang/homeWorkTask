@@ -19,6 +19,37 @@ export enum AIProvider {
   DEEPSEEK = 'deepseek'
 }
 
+export enum EventType {
+  HOMEWORK = 'Daily Homework',
+  WEEKLY_QUIZ = 'Weekly Quiz',
+  MONTHLY_TEST = 'Monthly Test',
+  MIDTERM = 'Midterm Exam',
+  FINAL = 'Final Exam'
+}
+
+export interface SchoolNode {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface EventNode {
+  id: string;
+  name: string;
+  type: EventType;
+  order: number;
+  schoolId: string; // Link to a specific school
+}
+
+export interface AcademicEvent {
+  id: string;
+  type: EventType;
+  title: string;
+  date: string;
+  level: 'School' | 'Class';
+  description?: string;
+}
+
 export interface AppSettings {
   aiProvider: AIProvider;
   deepseekApiKey: string;
@@ -26,14 +57,17 @@ export interface AppSettings {
   deepseekModel: string;
   supabaseUrl: string;
   supabaseKey: string;
+  schools: SchoolNode[]; // Managed schools
+  eventNodes: EventNode[]; // Managed event categories per school
 }
 
 export interface UserProfile {
-  id: string; // WeChat OpenID, GitHub ID, or email_{email}
+  id: string;
   nickname: string;
   avatar: string;
   grade: string;
-  password?: string; // Stored for traditional login
+  school?: string; // This will now correspond to a SchoolNode.name or id
+  password?: string;
 }
 
 export interface HomeworkTask {
@@ -41,14 +75,14 @@ export interface HomeworkTask {
   title: string;
   source: string;
   subject: Subject;
-  category: AssignmentCategory;
+  category: string;
   content: string;
   deadline: string;
   status: 'pending' | 'submitted' | 'processing' | 'graded';
   timestamp: number;
   submissionImage?: string;
   result?: GradingResult;
-  isGeneratingPlan?: boolean; // New flag for plan generation sync
+  isGeneratingPlan?: boolean;
 }
 
 export interface GradingResult {
@@ -86,7 +120,7 @@ export interface LearningPlan {
   deepAnalysis?: string;
   tasks: LearningTask[];
   createdAt: number;
-  sourceTaskId?: string; // 新增：关联的具体作业 ID
+  sourceTaskId?: string;
   sourceTaskTitle?: string;
   sourceTaskSubject?: string;
 }

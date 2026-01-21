@@ -1,10 +1,11 @@
+
 # IntelliTask AI - 智能作业管理系统
 
-IntelliTask AI 是一个闭环的智能教育辅助 system，通过 AI 技术实现从作业采集、批改到自适应学习与报告生成的全流程自动化。
+IntelliTask AI 是一个闭环的智能教育辅助系统，通过 AI 技术实现从作业采集、批改到自适应学习与报告生成的全流程自动化。
 
 ## 1. 业务逻辑分析
 
-系统构建了一个“采集-批改-反馈-提升”的教育闭环：
+系统构建了一个“采集-批改-反馈-提升”的教育闭环，并集成了学术里程碑管理：
 
 ```mermaid
 mindmap
@@ -12,7 +13,7 @@ mindmap
     账号与同步
       多账号切换 (WeChat/GitHub)
       云端持久化 (Supabase)
-      本地缓存 (LocalStorage)
+      资料管理 (支持学校/年级配置)
       国际化 (ZH/EN)
     作业采集 (Inbox)
       IM群聊提取 (AI 语义分析)
@@ -23,6 +24,10 @@ mindmap
       逻辑评估与打分
       强弱项分析
       知识点掌握度建模
+    备考中心 (Exam Center)
+      学术里程碑 (里程碑数字统计)
+      AI 备考方针 (基于历史表现)
+      点击穿透导航 (Dashboard -> Exam)
     自适应学习 (Learning Hub)
       深度学情剖析 (S-Tier 专家视角)
       按作业切换计划 (1:1 关联)
@@ -49,6 +54,7 @@ erDiagram
         string nickname
         string avatar
         string grade
+        string school "所属学校"
         string password "Plain text for demo, hash in production"
     }
 
@@ -56,6 +62,7 @@ erDiagram
         string id PK
         string user_id FK
         string title
+        string source
         string subject "Math/English/..."
         string category "Quiz/Homework/..."
         string status "pending/graded"
@@ -66,66 +73,38 @@ erDiagram
     LEARNING-PLAN {
         string id PK
         string user_id FK
-        string source_task_id FK "关联的作业ID"
+        string source_task_id FK "关联的具体作业ID"
         string focus_area
         text deep_analysis "AI 生成的长文本分析"
         jsonb tasks "LearningTask[]: video, reading, exercise"
+        string source_task_title
+        string source_task_subject
         long created_at
     }
 
     APP-SETTINGS {
         string id PK "User ID"
-        string aiProvider "gemini/deepseek"
-        string geminiApiKey
-        string supabaseUrl
-        string supabaseKey
+        jsonb settings "aiProvider, keys, endpoints"
     }
 ```
 
-## 3. API 接口设计
+## 3. 数据库初始化与迁移 (SQL)
 
-### 3.1 数据持久化层 (Supabase REST)
-这些接口基于 Supabase 自动生成的 RESTful 规范。所有请求均需在 Header 中包含 `apikey`。
-
-| 功能模块 | 动作 | 接口路径 | 核心参数 (JSON) | 返回类型 |
-| :--- | :--- | :--- | :--- | :--- |
-| **用户资料** | Upsert | `POST /rest/v1/user_profiles` | `{id, nickname, avatar, grade, password}` | `201 Created` |
-| **查询用户** | Get | `GET /rest/v1/user_profiles?id=eq.{uid}` | `id` (Query) | `UserProfile[]` |
-| **作业列表** | Get | `GET /rest/v1/homework_tasks?user_id=eq.{uid}` | `user_id` (Query) | `HomeworkTask[]` |
-| **保存作业** | Upsert | `POST /rest/v1/homework_tasks` | `HomeworkTask` 对象 | `201 Created` |
-| **获取计划** | Get | `GET /rest/v1/learning_plans?source_task_id=eq.{tid}` | `source_task_id` (Query) | `LearningPlan` |
-
-## 4. 故障排查 (数据不写入？)
-
-如果你的数据没有出现在 Supabase 表中，请依次检查：
-
-1.  **环境变量**：确保 `.env` 中的 `SUPABASE_URL` 和 `SUPABASE_KEY` 正确无误。
-2.  **关闭 RLS** (开发阶段建议)：
-    在 Supabase SQL Editor 执行以下命令，否则数据库会拦截所有未经认证的写入：
-    ```sql
-    ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
-    ALTER TABLE homework_tasks DISABLE ROW LEVEL SECURITY;
-    ALTER TABLE learning_plans DISABLE ROW LEVEL SECURITY;
-    ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
-    ```
-3.  **检查控制台**：打开浏览器开发者工具 (F12) -> Console。代码会详细打印 Supabase 返回的报错信息。
-
-## 5. Supabase 数据库初始化与迁移
-
-### 5.1 针对新用户的完整初始化脚本
+### 3.1 完整初始化脚本 (针对新环境)
 在 Supabase **SQL Editor** 中运行以下脚本以创建所有必要的表：
 
 ```sql
--- 1. 用户资料
+-- 1. 用户资料表 (增加学校字段)
 CREATE TABLE IF NOT EXISTS user_profiles (
   id TEXT PRIMARY KEY,
   nickname TEXT,
   avatar TEXT,
   grade TEXT,
-  password TEXT -- 存储密码字段
+  school TEXT,
+  password TEXT
 );
 
--- 2. 作业任务
+-- 2. 作业任务表
 CREATE TABLE IF NOT EXISTS homework_tasks (
   id TEXT PRIMARY KEY,
   user_id TEXT REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -141,20 +120,20 @@ CREATE TABLE IF NOT EXISTS homework_tasks (
   result JSONB
 );
 
--- 3. 学习计划
+-- 3. 学习计划表
 CREATE TABLE IF NOT EXISTS learning_plans (
   id TEXT PRIMARY KEY,
   user_id TEXT REFERENCES user_profiles(id) ON DELETE CASCADE,
-  source_task_id TEXT, -- 关联的具体作业 ID
+  source_task_id TEXT,
   focus_area TEXT,
   tasks JSONB,
-  deep_analysis TEXT, -- 存储深度分析文本
+  deep_analysis TEXT,
   source_task_title TEXT,
   source_task_subject TEXT,
   created_at BIGINT
 );
 
--- 4. 应用设置 (用于持久化 AI 服务商, API 密钥等)
+-- 4. 应用设置表
 CREATE TABLE IF NOT EXISTS app_settings (
   id TEXT PRIMARY KEY REFERENCES user_profiles(id) ON DELETE CASCADE,
   settings JSONB NOT NULL,
@@ -162,10 +141,34 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 ```
 
-### 5.2 针对已有用户的迁移脚本 (补齐 password 字段)
-如果你的 `user_profiles` 表已经存在但没有 `password` 字段，请运行以下命令：
+### 3.2 结构变更脚本 (针对已有环境)
+如果您的数据库已经运行，请执行以下命令来同步最新的字段变更：
 
 ```sql
--- 为现有用户表添加密码列
-ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS password TEXT;
+-- 为用户表添加学校信息字段
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS school TEXT;
+
+-- 确保学习计划表包含关联作业的元数据（用于 Hub 展示）
+ALTER TABLE learning_plans ADD COLUMN IF NOT EXISTS source_task_title TEXT;
+ALTER TABLE learning_plans ADD COLUMN IF NOT EXISTS source_task_subject TEXT;
+
+-- 禁用 RLS 以确保开发环境顺畅 (仅限开发阶段)
+ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE homework_tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE learning_plans DISABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
 ```
+
+## 4. 核心功能说明
+
+### 4.1 学术里程碑与备考中心联动
+*   **仪表盘 (Dashboard)**：动态展示学术里程碑（课后作业、周测、月考等），并实时统计各分类下的任务数量。
+*   **交互逻辑**：点击仪表盘上的里程碑图标将直接携带状态跳转至 **备考中心 (Exam Center)**，系统会自动定位并高亮目标事件。
+*   **AI 备考建议**：系统会分析该里程碑前一阶段的所有作业表现，生成针对性的复习策略。
+
+### 4.2 智能批改与闭环学习
+*   **Scanner**：通过 Gemini 1.5 Pro 对上传的作业图片进行 OCR 识别、逻辑批改并给出多维度的知识点掌握评价。
+*   **Learning Hub**：根据批改结果中的 Weaknesses 字段，AI 会自动编写深度学情诊断，并提供“基础-进阶-挑战”三段式学习任务。
+
+---
+*Powered by Google Gemini API & Supabase.*
