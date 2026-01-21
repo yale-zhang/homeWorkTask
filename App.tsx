@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, RefreshCcw, QrCode, Loader2, ChevronRight, AlertCircle, Cloud, CloudOff, Github, Settings, Database, Cpu, Save, RotateCw, Key, UserPlus, History } from 'lucide-react';
+import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, RefreshCcw, QrCode, Loader2, ChevronRight, AlertCircle, Cloud, CloudOff, Github, Settings, Database, Cpu, Save, RotateCw, Key, UserPlus, History, Mail, Lock, Eye, EyeOff, Square, CheckSquare } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import HomeworkInbox from './components/HomeworkInbox';
 import Scanner from './components/Scanner';
@@ -13,6 +13,8 @@ import { apiService } from './services/apiService';
 import { settingsService } from './services/settingsService';
 
 const CURRENT_USER_ID_KEY = 'intellitask_current_uid';
+const REMEMBERED_EMAIL_KEY = 'itask_remembered_email';
+const REMEMBERED_PASSWORD_KEY = 'itask_remembered_password';
 
 const SidebarItem: React.FC<{ icon: any; label: string; path: string; active: boolean }> = ({ icon: Icon, label, path, active }) => (
   <Link
@@ -138,10 +140,16 @@ const AppContent: React.FC = () => {
   const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
-  const [isLoggingIn, setIsLoggingIn] = useState<'wechat' | 'github' | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState<'traditional' | 'wechat' | 'github' | null>(null);
   const [showAccountCenter, setShowAccountCenter] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [loginView, setLoginView] = useState<'select' | 'new'>('select');
+  const [loginView, setLoginView] = useState<'signin' | 'signup' | 'select'>('signin');
+  
+  // Traditional login states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const [tasks, setTasks] = useState<HomeworkTask[]>([]);
   const [currentPlan, setCurrentPlan] = useState<LearningPlan | null>(null);
@@ -171,14 +179,25 @@ const AppContent: React.FC = () => {
       const users = await refreshUsers();
       const savedUid = localStorage.getItem(CURRENT_USER_ID_KEY);
       
+      // Load remembered credentials
+      const rememberedEmail = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      const rememberedPassword = localStorage.getItem(REMEMBERED_PASSWORD_KEY);
+      if (rememberedEmail) setEmail(rememberedEmail);
+      if (rememberedPassword) setPassword(rememberedPassword);
+      if (rememberedEmail || rememberedPassword) setRememberMe(true);
+
+      if (savedUid) {
+        const user = users.find(u => u.id === savedUid);
+        if (user) {
+          setCurrentUser(user);
+          return;
+        }
+      }
+      
       if (users.length > 0) {
         setLoginView('select');
-        if (savedUid) {
-          const user = users.find(u => u.id === savedUid);
-          if (user) setCurrentUser(user);
-        }
       } else {
-        setLoginView('new');
+        setLoginView('signin');
       }
     };
     init();
@@ -193,21 +212,16 @@ const AppContent: React.FC = () => {
       }
       
       setIsSyncing(true);
-      // 清理当前状态，防止旧账号数据闪现
       setTasks([]);
       setCurrentPlan(null);
-
-      // 1. 更新本地 UID 保证 settingsService 能立即感知
       localStorage.setItem(CURRENT_USER_ID_KEY, currentUser.id);
       
       try {
-        // 2. 加载云端设置
         const cloudSettings = await apiService.getCloudSettings(currentUser.id);
         if (cloudSettings) {
           settingsService.saveSettings(cloudSettings, currentUser.id);
         }
 
-        // 3. 并行获取该账号下的任务和计划
         const [userTasks, userPlan] = await Promise.all([
           apiService.getTasks(currentUser.id),
           apiService.getPlan(currentUser.id)
@@ -219,7 +233,6 @@ const AppContent: React.FC = () => {
       } catch (err) {
         console.error("Failed to load account data:", err);
         setIsCloudConnected(false);
-        // 回退到本地缓存
         const localTasks = await apiService.getTasks(currentUser.id);
         const localPlan = await apiService.getPlan(currentUser.id);
         setTasks(localTasks || []);
@@ -235,14 +248,67 @@ const AppContent: React.FC = () => {
     localStorage.setItem(CURRENT_USER_ID_KEY, user.id);
     setCurrentUser(user);
     setShowAccountCenter(false);
-    addNotification(language === 'zh' ? `已切换到 ${user.nickname}` : `Switched to ${user.nickname}`);
+    addNotification(t('login_success'));
+  };
+
+  const handleTraditionalLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    
+    // Manage local remembered credentials
+    if (rememberMe) {
+      localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+      localStorage.setItem(REMEMBERED_PASSWORD_KEY, password);
+    } else {
+      localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      localStorage.removeItem(REMEMBERED_PASSWORD_KEY);
+    }
+
+    setIsLoggingIn('traditional');
+    try {
+      if (loginView === 'signin') {
+        // CALL INTERFACE FOR VERIFICATION
+        const user = await apiService.verifyCredentials(email, password);
+        if (user) {
+          handleAccountSwitch(user);
+        } else {
+          addNotification(t('invalid_creds'));
+        }
+      } else {
+        // Sign up logic
+        const targetUid = `email_${email}`;
+        const existingUser = await apiService.getUser(targetUid);
+        if (existingUser) {
+           addNotification(t('email_exists'));
+           setLoginView('signin');
+           return;
+        }
+
+        const newUser: UserProfile = {
+          id: targetUid,
+          nickname: email.split('@')[0],
+          avatar: `https://ui-avatars.com/api/?name=${email}&background=6366f1&color=fff`,
+          grade: language === 'zh' ? '10年级' : 'Grade 10',
+          password: password // In real production, use bcrypt or similar for hashing
+        };
+        await apiService.syncUser(newUser);
+        await refreshUsers();
+        addNotification(t('signup_success'));
+        handleAccountSwitch(newUser);
+      }
+    } catch (err) {
+      console.error("Auth process failed:", err);
+      addNotification(language === 'zh' ? '认证服务异常' : 'Auth service error');
+    } finally {
+      setIsLoggingIn(null);
+    }
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    setShowAccountCenter(false);
     localStorage.removeItem(CURRENT_USER_ID_KEY);
-    window.location.reload();
+    setCurrentUser(null);
+    setLoginView('signin');
+    setShowAccountCenter(false);
   };
 
   const openAccountCenter = async () => {
@@ -253,29 +319,39 @@ const AppContent: React.FC = () => {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Animated Background Orbs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/10 blur-[120px] rounded-full animate-pulse"></div>
+
         <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 relative z-10 border border-white/20">
-          <div className="flex flex-col items-center text-center">
+          <div className="flex flex-col items-center">
             <div className="bg-indigo-600 p-4 rounded-3xl text-white shadow-xl mb-6"><BookOpen size={40} /></div>
             
             <h1 className="text-2xl font-black text-slate-900 mb-2">
-              {loginView === 'select' ? (language === 'zh' ? '欢迎回来' : 'Welcome Back') : t('login_welcome')}
+              {loginView === 'signin' ? t('login_welcome') : loginView === 'signup' ? t('login_signup_btn') : (language === 'zh' ? '欢迎回来' : 'Welcome Back')}
             </h1>
-            <p className="text-slate-500 text-sm mb-8">
-              {loginView === 'select' ? (language === 'zh' ? '请选择一个已有的账号继续学习' : 'Please select an account to continue') : t('login_desc')}
+            <p className="text-slate-500 text-sm mb-8 text-center">
+              {loginView === 'select' ? (language === 'zh' ? '请选择一个已有的账号并验证密码' : 'Please select an account and verify password') : t('login_desc')}
             </p>
 
-            {isSyncing && availableUsers.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-10">
-                <Loader2 className="animate-spin text-indigo-600" size={32} />
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Searching Profiles...</p>
-              </div>
-            ) : loginView === 'select' && availableUsers.length > 0 ? (
-              <div className="w-full space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {loginView === 'select' ? (
+              <div className="w-full space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                   {availableUsers.map(user => (
                     <button
                       key={user.id}
-                      onClick={() => handleAccountSwitch(user)}
+                      onClick={() => {
+                        // ENFORCE PASSWORD VERIFICATION: Pre-fill and switch to signin
+                        if (user.id.startsWith('email_')) {
+                          const emailFromId = user.id.replace('email_', '');
+                          setEmail(emailFromId);
+                          setPassword('');
+                          setLoginView('signin');
+                        } else {
+                          // Social accounts handled normally
+                          handleAccountSwitch(user);
+                        }
+                      }}
                       className="w-full p-4 rounded-2xl flex items-center gap-4 bg-slate-50 border border-transparent hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group"
                     >
                       <img src={user.avatar} className="w-12 h-12 rounded-full border-2 border-white shadow-sm" alt="" />
@@ -283,53 +359,136 @@ const AppContent: React.FC = () => {
                         <p className="font-bold text-slate-800 truncate group-hover:text-indigo-600">{user.nickname}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase">{user.grade}</p>
                       </div>
-                      <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1" />
+                      <div className="flex flex-col items-end gap-1">
+                        <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1" />
+                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Verify</span>
+                      </div>
                     </button>
                   ))}
                 </div>
-                <div className="pt-4 border-t border-slate-100">
-                  <button onClick={() => setLoginView('new')} className="w-full py-4 text-indigo-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-50 rounded-2xl transition-all">
-                    <UserPlus size={18} /> {language === 'zh' ? '使用新账号登录' : 'New Login'}
+                <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
+                  <button onClick={() => setLoginView('signin')} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+                    <UserPlus size={18} /> {language === 'zh' ? '使用其他账号登录' : 'Other Account'}
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="w-full space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <button 
-                  onClick={async () => {
-                    setIsLoggingIn('wechat');
-                    const mockOpenId = `wx_${Math.floor(Math.random() * 9000) + 1000}`;
-                    const newUser: UserProfile = { id: mockOpenId, nickname: 'Student ' + mockOpenId.split('_')[1], avatar: `https://picsum.photos/seed/${mockOpenId}/100/100`, grade: language === 'zh' ? '10年级' : 'Grade 10' };
-                    try { await apiService.syncUser(newUser); await refreshUsers(); } catch(e) {}
-                    handleAccountSwitch(newUser);
-                    setIsLoggingIn(null);
-                  }}
-                  disabled={!!isLoggingIn}
-                  className="w-full bg-[#07C160] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 disabled:opacity-70 shadow-lg"
-                >
-                  {isLoggingIn === 'wechat' ? <Loader2 className="animate-spin" size={24} /> : <RefreshCcw size={22} />}
-                  <span className="text-lg">{isLoggingIn === 'wechat' ? t('auth_loading') : t('wechat_login')}</span>
-                </button>
+              <div className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <form onSubmit={handleTraditionalLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">{t('login_email')}</label>
+                    <div className="relative">
+                      <input 
+                        type="email" 
+                        required 
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="example@mail.com"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 pl-11 outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    </div>
+                  </div>
 
-                <button 
-                  onClick={async () => {
-                    setIsLoggingIn('github');
-                    const mockGhId = `gh_${Math.floor(Math.random() * 9000) + 1000}`;
-                    const newUser: UserProfile = { id: mockGhId, nickname: 'GH_User_' + mockGhId.split('_')[1], avatar: `https://avatars.githubusercontent.com/u/${Math.floor(Math.random() * 100000)}?v=4`, grade: language === 'zh' ? '12年级' : 'Grade 12' };
-                    try { await apiService.syncUser(newUser); await refreshUsers(); } catch(e) {}
-                    handleAccountSwitch(newUser);
-                    setIsLoggingIn(null);
-                  }}
-                  disabled={!!isLoggingIn}
-                  className="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 shadow-lg"
-                >
-                  {isLoggingIn === 'github' ? <Loader2 className="animate-spin" size={24} /> : <Github size={22} />}
-                  <span className="text-lg">{isLoggingIn === 'github' ? t('auth_loading') : t('github_login')}</span>
-                </button>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">{t('login_password')}</label>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        required 
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 pl-11 pr-11 outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                      />
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Remember Me Checkbox */}
+                  <div className="flex items-center justify-between px-1">
+                    <button 
+                      type="button"
+                      onClick={() => setRememberMe(!rememberMe)}
+                      className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors group"
+                    >
+                      {rememberMe ? <CheckSquare size={18} className="text-indigo-600" /> : <Square size={18} className="text-slate-300 group-hover:text-indigo-300" />}
+                      <span className="text-xs font-bold">{t('login_remember_me')}</span>
+                    </button>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={!!isLoggingIn}
+                    className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 disabled:opacity-70 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isLoggingIn === 'traditional' ? <Loader2 className="animate-spin" size={20} /> : null}
+                    {loginView === 'signin' ? t('login_signin_btn') : t('login_signup_btn')}
+                  </button>
+                </form>
+
+                <div className="text-center">
+                   <p className="text-sm text-slate-500">
+                     {loginView === 'signin' ? t('login_no_account') : t('login_has_account')}{' '}
+                     <button 
+                      onClick={() => setLoginView(loginView === 'signin' ? 'signup' : 'signin')}
+                      className="text-indigo-600 font-bold hover:underline"
+                     >
+                       {loginView === 'signin' ? t('login_signup_btn') : t('login_signin_btn')}
+                     </button>
+                   </p>
+                </div>
+
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-slate-100"></div>
+                  <span className="flex-shrink mx-4 text-xs font-bold text-slate-300 uppercase tracking-widest">{t('login_other_methods')}</span>
+                  <div className="flex-grow border-t border-slate-100"></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={async () => {
+                      setIsLoggingIn('wechat');
+                      const mockOpenId = `wx_${Math.floor(Math.random() * 9000) + 1000}`;
+                      const newUser: UserProfile = { id: mockOpenId, nickname: 'WX_User_' + mockOpenId.split('_')[1], avatar: `https://picsum.photos/seed/${mockOpenId}/100/100`, grade: language === 'zh' ? '10年级' : 'Grade 10' };
+                      try { await apiService.syncUser(newUser); await refreshUsers(); } catch(e) {}
+                      handleAccountSwitch(newUser);
+                      setIsLoggingIn(null);
+                    }}
+                    disabled={!!isLoggingIn}
+                    className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 py-3 px-4 rounded-2xl font-bold text-sm border border-emerald-100 hover:bg-emerald-100 transition-all"
+                  >
+                    {isLoggingIn === 'wechat' ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={18} />}
+                    {t('wechat_login')}
+                  </button>
+
+                  <button 
+                    onClick={async () => {
+                      setIsLoggingIn('github');
+                      const mockGhId = `gh_${Math.floor(Math.random() * 9000) + 1000}`;
+                      const newUser: UserProfile = { id: mockGhId, nickname: 'GH_User_' + mockGhId.split('_')[1], avatar: `https://avatars.githubusercontent.com/u/${Math.floor(Math.random() * 100000)}?v=4`, grade: language === 'zh' ? '12年级' : 'Grade 12' };
+                      try { await apiService.syncUser(newUser); await refreshUsers(); } catch(e) {}
+                      handleAccountSwitch(newUser);
+                      setIsLoggingIn(null);
+                    }}
+                    disabled={!!isLoggingIn}
+                    className="flex items-center justify-center gap-2 bg-slate-900 text-white py-3 px-4 rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all"
+                  >
+                    {isLoggingIn === 'github' ? <Loader2 className="animate-spin" size={16} /> : <Github size={18} />}
+                    {t('github_login')}
+                  </button>
+                </div>
 
                 {availableUsers.length > 0 && (
-                  <button onClick={() => setLoginView('select')} className="w-full py-3 text-slate-500 font-bold text-sm flex items-center justify-center gap-2 hover:text-slate-800 transition-colors">
-                    <History size={16} /> {language === 'zh' ? '返回历史账号' : 'Existing Accounts'}
+                  <button onClick={() => setLoginView('select')} className="w-full py-2 text-slate-400 font-bold text-xs flex items-center justify-center gap-2 hover:text-slate-600 transition-colors">
+                    <History size={14} /> {language === 'zh' ? '返回账号列表' : 'Return to List'}
                   </button>
                 )}
               </div>
@@ -356,7 +515,10 @@ const AppContent: React.FC = () => {
               {availableUsers.map(user => (
                 <button
                   key={user.id}
-                  onClick={() => handleAccountSwitch(user)}
+                  onClick={() => {
+                     // Inside account center, we allow switching if already "known" locally
+                     handleAccountSwitch(user);
+                  }}
                   className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all border ${
                     currentUser.id === user.id ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent hover:border-slate-100'
                   }`}
@@ -410,7 +572,6 @@ const AppContent: React.FC = () => {
           <div className="flex items-center gap-2"><h2 className="text-lg font-semibold text-slate-800">{t('workspace')}</h2><span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">{currentUser.id.slice(0, 6)}</span></div>
           <button onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-bold text-xs">{language === 'en' ? '中文' : 'EN'}</button>
         </header>
-        {/* 重要：添加 key={currentUser.id} 强制在账号切换时重置所有子组件状态 */}
         <div className="flex-1 p-8 overflow-y-auto" key={currentUser.id}>
           <Routes>
             <Route path="/" element={<Dashboard user={currentUser} tasks={tasks} />} />

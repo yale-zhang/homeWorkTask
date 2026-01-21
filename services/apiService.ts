@@ -109,6 +109,32 @@ export const apiService = {
       return LocalDB.get('users', []); 
     }
   },
+  async getUser(id: string): Promise<UserProfile | null> {
+    const config = getClientConfig();
+    if (!config.isConfigured) {
+      const users = LocalDB.get<UserProfile[]>('users', []);
+      return users.find(u => u.id === id) || null;
+    }
+    try {
+      const response = await fetch(`${config.url}/rest/v1/user_profiles?id=eq.${id}&select=*`, { 
+        headers: getHeaders()
+      });
+      await handleResponse(response, 'getUser');
+      const data = await response.json();
+      return data.length > 0 ? data[0] : null;
+    } catch (error) {
+      console.warn("getUser failed", error);
+      return null;
+    }
+  },
+  async verifyCredentials(email: string, pass: string): Promise<UserProfile | null> {
+    const uid = `email_${email}`;
+    const user = await this.getUser(uid);
+    if (user && user.password === pass) {
+      return user;
+    }
+    return null;
+  },
   async syncUser(user: UserProfile): Promise<void> {
     const config = getClientConfig();
     const local = LocalDB.get<UserProfile[]>('users', []);
@@ -154,7 +180,6 @@ export const apiService = {
     const config = getClientConfig();
     if (!config.isConfigured) return LocalDB.get(taskId ? `plan_${userId}_${taskId}` : `plan_${userId}_latest`, null);
     try {
-      // 如果提供了 taskId，则查询特定作业的计划，否则查询该用户最新的一条计划
       const query = taskId ? `user_id=eq.${userId}&source_task_id=eq.${taskId}` : `user_id=eq.${userId}`;
       const response = await fetch(`${config.url}/rest/v1/learning_plans?${query}&select=*&order=created_at.desc&limit=1`, { headers: getHeaders() });
       await handleResponse(response, 'getPlan');
@@ -170,7 +195,6 @@ export const apiService = {
   },
   async savePlan(userId: string, plan: LearningPlan): Promise<void> {
     const config = getClientConfig();
-    // 双路缓存：既存最新也存特定作业
     LocalDB.set(`plan_${userId}_latest`, plan);
     if (plan.sourceTaskId) {
       LocalDB.set(`plan_${userId}_${plan.sourceTaskId}`, plan);

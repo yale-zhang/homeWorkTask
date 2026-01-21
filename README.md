@@ -1,6 +1,6 @@
 # IntelliTask AI - 智能作业管理系统
 
-IntelliTask AI 是一个闭环的智能教育辅助系统，通过 AI 技术实现从作业采集、批改到自适应学习与报告生成的全流程自动化。
+IntelliTask AI 是一个闭环的智能教育辅助 system，通过 AI 技术实现从作业采集、批改到自适应学习与报告生成的全流程自动化。
 
 ## 1. 业务逻辑分析
 
@@ -45,10 +45,11 @@ erDiagram
     HOMEWORK-TASK ||--o| LEARNING-PLAN : "triggers"
     
     USER-PROFILE {
-        string id PK "WeChat/GitHub ID"
+        string id PK "WeChat/GitHub/Email ID"
         string nickname
         string avatar
         string grade
+        string password "Plain text for demo, hash in production"
     }
 
     HOMEWORK-TASK {
@@ -81,7 +82,20 @@ erDiagram
     }
 ```
 
-## 3. 故障排查 (数据不写入？)
+## 3. API 接口设计
+
+### 3.1 数据持久化层 (Supabase REST)
+这些接口基于 Supabase 自动生成的 RESTful 规范。所有请求均需在 Header 中包含 `apikey`。
+
+| 功能模块 | 动作 | 接口路径 | 核心参数 (JSON) | 返回类型 |
+| :--- | :--- | :--- | :--- | :--- |
+| **用户资料** | Upsert | `POST /rest/v1/user_profiles` | `{id, nickname, avatar, grade, password}` | `201 Created` |
+| **查询用户** | Get | `GET /rest/v1/user_profiles?id=eq.{uid}` | `id` (Query) | `UserProfile[]` |
+| **作业列表** | Get | `GET /rest/v1/homework_tasks?user_id=eq.{uid}` | `user_id` (Query) | `HomeworkTask[]` |
+| **保存作业** | Upsert | `POST /rest/v1/homework_tasks` | `HomeworkTask` 对象 | `201 Created` |
+| **获取计划** | Get | `GET /rest/v1/learning_plans?source_task_id=eq.{tid}` | `source_task_id` (Query) | `LearningPlan` |
+
+## 4. 故障排查 (数据不写入？)
 
 如果你的数据没有出现在 Supabase 表中，请依次检查：
 
@@ -96,9 +110,10 @@ erDiagram
     ```
 3.  **检查控制台**：打开浏览器开发者工具 (F12) -> Console。代码会详细打印 Supabase 返回的报错信息。
 
-## 4. Supabase 数据库结构初始化
+## 5. Supabase 数据库初始化与迁移
 
-在 Supabase **SQL Editor** 中运行以下脚本：
+### 5.1 针对新用户的完整初始化脚本
+在 Supabase **SQL Editor** 中运行以下脚本以创建所有必要的表：
 
 ```sql
 -- 1. 用户资料
@@ -106,7 +121,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   id TEXT PRIMARY KEY,
   nickname TEXT,
   avatar TEXT,
-  grade TEXT
+  grade TEXT,
+  password TEXT -- 存储密码字段
 );
 
 -- 2. 作业任务
@@ -144,4 +160,12 @@ CREATE TABLE IF NOT EXISTS app_settings (
   settings JSONB NOT NULL,
   updated_at BIGINT
 );
+```
+
+### 5.2 针对已有用户的迁移脚本 (补齐 password 字段)
+如果你的 `user_profiles` 表已经存在但没有 `password` 字段，请运行以下命令：
+
+```sql
+-- 为现有用户表添加密码列
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS password TEXT;
 ```

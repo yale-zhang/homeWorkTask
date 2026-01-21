@@ -30,10 +30,11 @@ export interface AppSettings {
 }
 
 export interface UserProfile {
-  id: string; // WeChat OpenID or GitHub ID
+  id: string; // WeChat OpenID, GitHub ID, or email_{email}
   nickname: string;
   avatar: string;
   grade: string;
+  password?: string; // Stored for traditional login
 }
 
 export interface HomeworkTask {
