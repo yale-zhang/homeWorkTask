@@ -1,12 +1,14 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AIProvider, AppSettings } from "../types";
+import { AIProvider } from "../types";
 import { settingsService } from "./settingsService";
 
+/**
+ * Always obtain the API key exclusively from the environment variable process.env.API_KEY.
+ * The application must not ask the user for it or manage it in settings.
+ */
 const getAiClient = () => {
-  const settings = settingsService.getSettings();
-  const apiKey = settings.geminiApiKey || process.env.API_KEY;
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 async function callDeepSeek(prompt: string, systemInstruction: string, jsonResponse: boolean = false) {
@@ -38,6 +40,7 @@ async function callDeepSeek(prompt: string, systemInstruction: string, jsonRespo
 }
 
 export const geminiService = {
+  // Use gemini-3-flash-preview for basic OCR tasks.
   async extractTextFromImage(imageBuffer: string, lang: 'en' | 'zh' = 'zh') {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
@@ -52,6 +55,7 @@ export const geminiService = {
     return response.text || "No text could be extracted.";
   },
 
+  // Use gemini-3-flash-preview for simple extraction and metadata generation.
   async extractHomeworkFromImage(imageBuffer: string, lang: 'en' | 'zh' = 'zh') {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
@@ -110,14 +114,22 @@ export const geminiService = {
     return JSON.parse(response.text || '{}');
   },
 
+  // Upgrade to gemini-3-pro-preview for complex reasoning task: grading and gap analysis.
   async gradeSubmission(imageBuffer: string, prompt: string, lang: 'en' | 'zh' = 'zh') {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageBuffer } },
-          { text: `Grade this homework based on: "${prompt}". Provide score, strengths, weaknesses, feedback, and knowledge mastery levels. Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
+          { text: `Grade this homework based on context: "${prompt}". 
+          
+          You must perform three tasks:
+          1. OCR: Extract the full raw text from the image as 'extractedText'.
+          2. Grading: Calculate 'score' and 'totalScore'.
+          3. Analysis: Provide 'strengths', 'weaknesses', 'detailedFeedback', and 'knowledgePoints' (mastery level 0-100).
+          
+          Respond in ${lang === 'zh' ? 'Chinese' : 'English'}.` }
         ]
       },
       config: {
@@ -130,6 +142,7 @@ export const geminiService = {
             strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
             weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
             detailedFeedback: { type: Type.STRING },
+            extractedText: { type: Type.STRING },
             knowledgePoints: {
               type: Type.ARRAY,
               items: {
@@ -144,6 +157,7 @@ export const geminiService = {
     return JSON.parse(response.text || '{}');
   },
 
+  // Upgrade to gemini-3-pro-preview and enable thinking budget for high-quality pedagogical analysis and planning.
   async generatePlan(weaknesses: string[], lang: 'en' | 'zh' = 'zh') {
     const settings = settingsService.getSettings();
     const prompt = `你是一位世界顶级的教育心理学家和资深特级教师（S-Tier Educator）。
@@ -154,7 +168,7 @@ export const geminiService = {
     
     1. **深度学情剖析 (deepAnalysis)**：
        - 要求：字数不少于 600 字。
-       - 内容：深入挖掘这些知识点之间的内在联系。分析学生之所以产生这些漏洞的潜在原因（如基础概念混淆、逻辑断层等）。阐述如果不及时修补这些漏洞，对未来更高级别学习的长远负面影响。给出针对性的教育心理学层面的建议，鼓励学生并提供学习方法论（如费曼技巧、错题本策略等）。
+       - 内容：深入挖掘这些知识点之间的内在联系。分析学生之所以产生 these 漏洞的潜在原因（如基础概念混淆、逻辑断层等）。阐述如果不及时修补这些漏洞，对未来更高级别学习的长远负面影响。给出针对性的教育心理学层面的建议，鼓励学生并提供学习方法论（如费曼技巧、错题本策略等）。
        
     2. **核心目标设定 (focusArea)**：
        - 用一句话精准概括本次学习路径的核心突破点。
@@ -173,9 +187,10 @@ export const geminiService = {
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingBudget: 4000 }, // Enable reasoning for detailed pedagogical output.
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

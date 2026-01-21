@@ -21,7 +21,6 @@ export enum AIProvider {
 
 export interface AppSettings {
   aiProvider: AIProvider;
-  geminiApiKey?: string;
   deepseekApiKey: string;
   deepseekBaseUrl: string;
   deepseekModel: string;
@@ -45,10 +44,11 @@ export interface HomeworkTask {
   category: AssignmentCategory;
   content: string;
   deadline: string;
-  status: 'pending' | 'submitted' | 'graded';
+  status: 'pending' | 'submitted' | 'processing' | 'graded';
   timestamp: number;
   submissionImage?: string;
   result?: GradingResult;
+  isGeneratingPlan?: boolean; // New flag for plan generation sync
 }
 
 export interface GradingResult {

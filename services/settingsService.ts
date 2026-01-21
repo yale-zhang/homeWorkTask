@@ -4,13 +4,6 @@ import { AIProvider, AppSettings } from '../types';
 const GLOBAL_SETTINGS_KEY = 'intellitask_app_settings';
 const CURRENT_USER_ID_KEY = 'intellitask_current_uid';
 
-// 扩展 AppSettings 接口以包含 Gemini Key 的覆盖
-declare module '../types' {
-  interface AppSettings {
-    geminiApiKey?: string;
-  }
-}
-
 // 辅助函数：清理环境变量中的冒号（解决 .env 格式问题）
 const getEnv = (key: string) => {
   const val = process.env[key];
@@ -20,7 +13,6 @@ const getEnv = (key: string) => {
 
 const defaultSettings: AppSettings = {
   aiProvider: AIProvider.GEMINI,
-  geminiApiKey: getEnv('API_KEY'),
   deepseekApiKey: '',
   deepseekBaseUrl: 'https://api.deepseek.com',
   deepseekModel: 'deepseek-chat',

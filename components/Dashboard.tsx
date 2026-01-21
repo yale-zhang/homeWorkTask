@@ -1,7 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HomeworkTask, AssignmentCategory, Subject, UserProfile } from '../types';
-import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, Calendar } from 'lucide-react';
+// Add ChevronRight to the list of imports from lucide-react
+import { Clock, CheckCircle2, AlertCircle, ArrowUpRight, BarChart3, Filter, X, Calendar, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../i18n';
 
 interface Props {
@@ -25,7 +27,9 @@ const StatCard = ({ label, value, icon: Icon, color }: { label: string, value: s
 );
 
 const Dashboard: React.FC<Props> = ({ user, tasks }) => {
-  const { t } = useTranslation();
+  // Extract language from useTranslation to use it for conditional text rendering
+  const { t, language } = useTranslation();
+  const navigate = useNavigate();
   
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -127,13 +131,17 @@ const Dashboard: React.FC<Props> = ({ user, tasks }) => {
           
           <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-sm">
             {filteredTasks.length > 0 ? filteredTasks.slice(0, 8).map((task) => (
-              <div key={task.id} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0">
+              <div 
+                key={task.id} 
+                onClick={() => navigate(`/scanner/${task.id}`)}
+                className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-all cursor-pointer group active:scale-[0.995]"
+              >
+                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
                   {t(task.subject)[0]}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <h4 className="font-semibold text-slate-800 truncate">{t(task.subject)}</h4>
+                    <h4 className="font-semibold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{t(task.subject)}</h4>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${getCategoryColor(task.category)}`}>
                       {t(task.category)}
                     </span>
@@ -149,6 +157,9 @@ const Dashboard: React.FC<Props> = ({ user, tasks }) => {
                   <p className="text-xs text-slate-400 mt-1 flex items-center justify-end gap-1">
                     <Calendar size={10} /> {task.deadline}
                   </p>
+                </div>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2">
+                  <ChevronRight size={16} className="text-indigo-400" />
                 </div>
               </div>
             )) : (
@@ -174,9 +185,12 @@ const Dashboard: React.FC<Props> = ({ user, tasks }) => {
             <div className="relative z-10">
               <h3 className="font-bold text-lg mb-2">{t('Mathematics')}</h3>
               <p className="text-indigo-100 text-sm leading-relaxed mb-4">
-                {t('focus_on_weakness', { subject: t('Mathematics') })}
+                {language === 'zh' ? '基于最近的批改结果，我们将重点攻克代数薄弱点。' : 'Focus on your Algebra weaknesses based on recent grades.'}
               </p>
-              <button className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-50 transition-colors">
+              <button 
+                onClick={() => navigate('/learning')}
+                className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-50 transition-colors"
+              >
                 {t('view_plan')}
               </button>
             </div>

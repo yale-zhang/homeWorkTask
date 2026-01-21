@@ -93,6 +93,9 @@ const translations: Translations = {
   transcript: { en: 'Handwriting Transcript', zh: '手写内容转录' },
   breakdown: { en: 'Knowledge Point Breakdown', zh: '知识点掌握分布' },
   view_plan: { en: 'View Learning Plan', zh: '查看学习计划' },
+  batch_grade: { en: 'Smart Batch Grade', zh: '智能批量批改' },
+  processing_tasks: { en: 'Processing...', zh: '正在处理...' },
+  grading_done: { en: 'Grading complete. Starting learning plan generation...', zh: '批改完成。正在生成学习计划...' },
   
   // Learning Hub
   roadmap: { en: 'Personalized AI Roadmap', zh: '个性化 AI 学习路径' },
@@ -102,6 +105,7 @@ const translations: Translations = {
   notif_plan_ready: { en: 'Success! Your custom learning plan for {focus} is ready.', zh: '成功！为您定制的针对 {focus} 的学习计划已就绪。' },
   notif_title: { en: 'Notifications', zh: '通知中心' },
   notif_empty: { en: 'No new notifications', zh: '暂无新通知' },
+  generating_plan: { en: 'AI is generating your learning plan...', zh: 'AI 正在为您生成学习计划...' },
   
   // Reports
   reports_title: { en: 'Weekly Performance', zh: '周度学情报告' },
