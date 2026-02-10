@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AcademicEvent, HomeworkTask, EventType, AssignmentCategory, EventNode } from '../types';
 import { useTranslation } from '../i18n';
-import { geminiService } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 import { settingsService } from '../services/settingsService';
 import { Target, Zap, GraduationCap, Clock, Calendar, BrainCircuit, Loader2, CheckCircle2, AlertCircle, TrendingUp, BarChart, ChevronRight, Info, Sparkles } from 'lucide-react';
 
@@ -46,7 +46,8 @@ const ExamCenter: React.FC<Props> = ({ tasks }) => {
     setAdviceCache(prev => ({ ...prev, [event.id]: { advice: '', loading: true } }));
     try {
       const prevTasks = tasks.filter(t => t.status === 'graded');
-      const advice = await geminiService.generateMilestoneAdvice(event as any, prevTasks, language);
+      const summary = prevTasks.map(t => `${t.title}: ${t.result?.weaknesses?.join(', ') || ''}`).join('; ').slice(0, 2000);
+      const advice = await apiService.generateMilestoneAdvice(event.title, event.type, summary, language);
       setAdviceCache(prev => ({ ...prev, [event.id]: { advice, loading: false } }));
     } catch (err) {
       setAdviceCache(prev => ({ ...prev, [event.id]: { advice: 'Failed.', loading: false } }));

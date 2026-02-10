@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { geminiService } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 import { HomeworkTask, Subject, AssignmentCategory, EventNode, UserProfile } from '../types';
 import { MessageSquare, Send, Bot, Loader2, Plus, ArrowRight, X, Calendar as CalendarIcon, Tag, Upload, Sparkles, Type as TypeIcon, ChevronDown, ChevronUp, Layers, CheckCircle } from 'lucide-react';
 import { useTranslation } from '../i18n';
@@ -43,7 +43,7 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask, user }) => {
   const handleParse = async (msg: typeof messages[0]) => {
     setParsingId(msg.id);
     try {
-      const result = await geminiService.extractHomeworkFromMessage(msg.text, language);
+      const result = await apiService.extractHomeworkFromMessage(msg.text, language);
       
       let matchedCategory = eventNodes[0]?.name || 'Homework';
       const aiCat = result.category?.toLowerCase() || '';
@@ -84,7 +84,7 @@ const HomeworkInbox: React.FC<Props> = ({ onNewTask, user }) => {
     setIsImageParsing(true);
     try {
       const base64Data = manualImage.split(',')[1];
-      const result = await geminiService.extractHomeworkFromImage(base64Data, language);
+      const result = await apiService.extractHomeworkFromImage(base64Data, language);
       
       let matchedCategory = manualTask.category;
       const aiCat = result.category?.toLowerCase() || '';

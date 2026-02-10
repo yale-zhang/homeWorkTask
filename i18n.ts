@@ -83,14 +83,6 @@ const translations: Translations = {
   login_success: { en: 'Welcome back!', zh: '欢迎回来！' },
 
   // Settings
-  ai_config: { en: 'AI Configuration', zh: 'AI 服务配置' },
-  ai_provider: { en: 'AI Provider', zh: 'AI 服务商' },
-  supabase_config: { en: 'Supabase Configuration', zh: '数据库配置' },
-  deepseek_key: { en: 'DeepSeek API Key', zh: 'DeepSeek 密钥' },
-  deepseek_url: { en: 'Base URL', zh: '接口基地址' },
-  deepseek_model: { en: 'Model Name', zh: '模型名称' },
-  sb_url: { en: 'Supabase URL', zh: 'Supabase 地址' },
-  sb_key: { en: 'Supabase Anon Key', zh: 'Supabase 密钥' },
   save_settings: { en: 'Save Settings', zh: '保存设置' },
   settings_saved: { en: 'Settings saved successfully', zh: '设置保存成功' },
   reset_settings: { en: 'Reset to Default', zh: '恢复默认' },

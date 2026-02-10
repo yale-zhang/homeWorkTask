@@ -14,10 +14,6 @@ export enum AssignmentCategory {
   PRACTICE = 'Daily Practice'
 }
 
-export enum AIProvider {
-  GEMINI = 'gemini',
-  DEEPSEEK = 'deepseek'
-}
 
 export enum EventType {
   HOMEWORK = 'Daily Homework',
@@ -51,12 +47,6 @@ export interface AcademicEvent {
 }
 
 export interface AppSettings {
-  aiProvider: AIProvider;
-  deepseekApiKey: string;
-  deepseekBaseUrl: string;
-  deepseekModel: string;
-  supabaseUrl: string;
-  supabaseKey: string;
   schools: SchoolNode[]; // Managed schools
   eventNodes: EventNode[]; // Managed event categories per school
 }

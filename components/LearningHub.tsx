@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { geminiService } from '../services/geminiService';
 import { apiService } from '../services/apiService';
 import { LearningPlan, HomeworkTask, LearningTask, Subject } from '../types';
 // Fixed: Added Target to the lucide-react import list to resolve the "Cannot find name 'Target'" error.
@@ -77,7 +76,7 @@ const LearningHub: React.FC<Props> = ({ tasks, savedPlan, onUpdatePlan, onAddNot
     setError(null);
     try {
       const weaknesses = activeGradedTask.result?.weaknesses || ['General Review'];
-      const res = await geminiService.generatePlan(weaknesses, language);
+      const res = await apiService.generatePlan(weaknesses, language);
       
       const newPlan: LearningPlan = {
         id: Math.random().toString(36).substr(2, 9),

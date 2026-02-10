@@ -1,14 +1,8 @@
 
-import { AIProvider, AppSettings, EventType, EventNode, SchoolNode } from '../types';
+import { AppSettings, EventType, EventNode, SchoolNode } from '../types';
 
 const GLOBAL_SETTINGS_KEY = 'intellitask_app_settings';
 const CURRENT_USER_ID_KEY = 'intellitask_current_uid';
-
-const getEnv = (key: string) => {
-  const val = process.env[key];
-  if (!val) return '';
-  return val.replace(/^[:\s]+/, '').trim();
-};
 
 const defaultSchools: SchoolNode[] = [
   { id: 'sch_default', name: '默认学校', order: 0 }
@@ -23,12 +17,6 @@ const defaultEventNodes: EventNode[] = [
 ];
 
 const defaultSettings: AppSettings = {
-  aiProvider: AIProvider.GEMINI,
-  deepseekApiKey: '',
-  deepseekBaseUrl: 'https://api.deepseek.com',
-  deepseekModel: 'deepseek-chat',
-  supabaseUrl: getEnv('SUPABASE_URL'),
-  supabaseKey: getEnv('SUPABASE_KEY'),
   schools: defaultSchools,
   eventNodes: defaultEventNodes
 };
@@ -46,9 +34,7 @@ export const settingsService = {
         ...defaultSettings, 
         ...parsed,
         schools: parsed.schools || defaultSchools,
-        eventNodes: parsed.eventNodes || defaultEventNodes,
-        supabaseUrl: parsed.supabaseUrl || defaultSettings.supabaseUrl,
-        supabaseKey: parsed.supabaseKey || defaultSettings.supabaseKey
+        eventNodes: parsed.eventNodes || defaultEventNodes
       };
     } catch {
       return { ...defaultSettings };

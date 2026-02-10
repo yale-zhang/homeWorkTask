@@ -1,17 +1,16 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, RefreshCcw, QrCode, Loader2, ChevronRight, AlertCircle, Cloud, CloudOff, Github, Settings, Database, Cpu, Save, RotateCw, Key, UserPlus, History, Mail, Lock, Eye, EyeOff, Square, CheckSquare, Pencil, School, UserCircle, Image, GraduationCap, ArrowLeft, Camera, TrendingUp, ListPlus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { LayoutDashboard, Inbox, ScanLine, BookOpen, BarChart3, Bell, User, MessageSquare, Languages, X, CheckCircle, LogOut, Loader2, ChevronRight, AlertCircle, Cloud, CloudOff, Settings, Save, RotateCw, UserPlus, History, Mail, Lock, Eye, EyeOff, Square, CheckSquare, Pencil, School, UserCircle, Image, GraduationCap, ArrowLeft, Camera, TrendingUp, ListPlus, Trash2, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import HomeworkInbox from './components/HomeworkInbox';
 import Scanner from './components/Scanner';
 import LearningHub from './components/LearningHub';
 import Reports from './components/Reports';
 import ExamCenter from './components/ExamCenter';
-import { HomeworkTask, LearningPlan, UserProfile, AIProvider, AppSettings, EventNode, EventType, SchoolNode } from './types';
+import { HomeworkTask, LearningPlan, UserProfile, AppSettings, EventNode, EventType, SchoolNode } from './types';
 import { LanguageProvider, useTranslation } from './i18n';
 import { apiService } from './services/apiService';
-import { geminiService } from './services/geminiService';
 import { settingsService } from './services/settingsService';
 
 const CURRENT_USER_ID_KEY = 'intellitask_current_uid';
@@ -33,7 +32,7 @@ const SidebarItem: React.FC<{ icon: any; label: string; path: string; active: bo
 const SettingsModal: React.FC<{ user: UserProfile, onClose: () => void, onSaved: (msg: string) => void }> = ({ user, onClose, onSaved }) => {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettings>(settingsService.getSettings());
-  const [activeTab, setActiveTab] = useState<'ai' | 'milestones' | 'supabase'>('ai');
+  const [activeTab, setActiveTab] = useState<'milestones'>('milestones');
   const [isSaving, setIsSaving] = useState(false);
   const [expandedSchoolId, setExpandedSchoolId] = useState<string | null>(null);
 
@@ -99,31 +98,10 @@ const SettingsModal: React.FC<{ user: UserProfile, onClose: () => void, onSaved:
         </div>
         
         <div className="flex border-b border-slate-100 overflow-x-auto whitespace-nowrap">
-          <button onClick={() => setActiveTab('ai')} className={`flex-1 py-4 px-6 font-bold text-sm flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'ai' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}><Cpu size={18} /> {t('ai_config')}</button>
-          <button onClick={() => setActiveTab('milestones')} className={`flex-1 py-4 px-6 font-bold text-sm flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'milestones' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}><TrendingUp size={18} /> {t('milestone_manage')}</button>
-          <button onClick={() => setActiveTab('supabase')} className={`flex-1 py-4 px-6 font-bold text-sm flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'supabase' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}><Database size={18} /> {t('supabase_config')}</button>
+          <button onClick={() => setActiveTab('milestones')} className="flex-1 py-4 px-6 font-bold text-sm flex items-center justify-center gap-2 border-b-2 transition-all border-indigo-600 text-indigo-600"><TrendingUp size={18} /> {t('milestone_manage')}</button>
         </div>
 
         <div className="p-8 overflow-y-auto flex-1 space-y-6">
-          {activeTab === 'ai' && (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-slate-700">{t('ai_provider')}</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setSettings({...settings, aiProvider: AIProvider.GEMINI})} className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${settings.aiProvider === AIProvider.GEMINI ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100'}`}><div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-black">G</div><span className="font-bold text-sm">Gemini</span></button>
-                  <button onClick={() => setSettings({...settings, aiProvider: AIProvider.DEEPSEEK})} className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${settings.aiProvider === AIProvider.DEEPSEEK ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100'}`}><div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black">D</div><span className="font-bold text-sm">DeepSeek</span></button>
-                </div>
-              </div>
-              {settings.aiProvider === AIProvider.DEEPSEEK && (
-                <div className="space-y-4 pt-4 border-t border-slate-100 animate-in fade-in">
-                  <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('deepseek_key')}</label><input type="password" value={settings.deepseekApiKey} onChange={e => setSettings({...settings, deepseekApiKey: e.target.value})} placeholder="sk-..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-                  <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('deepseek_url')}</label><input type="text" value={settings.deepseekBaseUrl} onChange={e => setSettings({...settings, deepseekBaseUrl: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-                  <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('deepseek_model')}</label><input type="text" value={settings.deepseekModel} onChange={e => setSettings({...settings, deepseekModel: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-                </div>
-              )}
-            </div>
-          )}
-
           {activeTab === 'milestones' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-2">
@@ -198,12 +176,6 @@ const SettingsModal: React.FC<{ user: UserProfile, onClose: () => void, onSaved:
             </div>
           )}
 
-          {activeTab === 'supabase' && (
-            <div className="space-y-6">
-              <div className="space-y-2"><label className="text-xs font-bold text-slate-500">{t('sb_url')}</label><input type="text" value={settings.supabaseUrl} onChange={e => setSettings({...settings, supabaseUrl: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none" /></div>
-              <div className="space-y-2"><label className="text-xs font-bold text-slate-500">{t('sb_key')}</label><input type="password" value={settings.supabaseKey} onChange={e => setSettings({...settings, supabaseKey: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none" /></div>
-            </div>
-          )}
         </div>
 
         <div className="p-8 bg-slate-50 flex gap-4">
@@ -295,10 +267,8 @@ const AppContent: React.FC = () => {
         setIsCloudConnected(true);
       } catch (err) {
         setIsCloudConnected(false);
-        const localTasks = await apiService.getTasks(currentUser.id);
-        const localPlan = await apiService.getPlan(currentUser.id);
-        setTasks(localTasks || []);
-        setCurrentPlan(localPlan || null);
+        setTasks([]);
+        setCurrentPlan(null);
       } finally { setIsSyncing(false); }
     };
     loadUserData();
@@ -319,11 +289,11 @@ const AppContent: React.FC = () => {
       const task = tasks.find(t => t.id === taskId);
       if (!task || !task.submissionImage) throw new Error("Task missing required data");
       const imgData = task.submissionImage.includes(',') ? task.submissionImage.split(',')[1] : task.submissionImage;
-      const result = await geminiService.gradeSubmission(imgData, task.content, language);
+      const result = await apiService.gradeSubmission(imgData, task.content, language);
       const updatedTask: HomeworkTask = { ...task, status: 'graded', result, isGeneratingPlan: true };
       setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
       await apiService.upsertTask(currentUser.id, updatedTask);
-      const planRes = await geminiService.generatePlan(result.weaknesses || ['General Review'], language);
+      const planRes = await apiService.generatePlan(result.weaknesses || ['General Review'], language);
       const newPlan: LearningPlan = {
         id: Math.random().toString(36).substr(2, 9),
         focusArea: planRes.focusArea,
@@ -368,16 +338,22 @@ const AppContent: React.FC = () => {
         const user = await apiService.verifyCredentials(email, password);
         if (user) handleAccountSwitch(user); else addNotification(t('invalid_creds'));
       } else {
-        const targetUid = `email_${email}`;
-        const existingUser = await apiService.getUser(targetUid);
-        if (existingUser) { addNotification(t('email_exists')); setLoginView('signin'); return; }
-        const newUser: UserProfile = { id: targetUid, nickname: email.split('@')[0], avatar: `https://ui-avatars.com/api/?name=${email}&background=6366f1&color=fff`, grade: language === 'zh' ? '10年级' : 'Grade 10', password: password };
-        await apiService.syncUser(newUser); await refreshUsers(); addNotification(t('signup_success')); handleAccountSwitch(newUser);
+        const user = await apiService.register(email, password);
+        await refreshUsers();
+        addNotification(t('signup_success'));
+        handleAccountSwitch(user);
       }
     } catch (err) { addNotification(language === 'zh' ? '认证服务异常' : 'Auth service error'); } finally { setIsLoggingIn(null); }
   };
 
-  const handleLogout = () => { localStorage.removeItem(CURRENT_USER_ID_KEY); setCurrentUser(null); setLoginView('signin'); setShowAccountCenter(false); };
+  const handleLogout = () => {
+    localStorage.removeItem(CURRENT_USER_ID_KEY);
+    localStorage.removeItem('intellitask_access_token');
+    localStorage.removeItem('intellitask_refresh_token');
+    setCurrentUser(null);
+    setLoginView('signin');
+    setShowAccountCenter(false);
+  };
   const openAccountCenter = async () => { setShowAccountCenter(true); await refreshUsers(); };
   const handleSaveProfile = async () => {
     if (!editingUser) return;
@@ -423,10 +399,7 @@ const AppContent: React.FC = () => {
                 </form>
                 <div className="text-center"><p className="text-sm text-slate-500">{loginView === 'signin' ? t('login_no_account') : t('login_has_account')}{' '}<button onClick={() => setLoginView(loginView === 'signin' ? 'signup' : 'signin')} className="text-indigo-600 font-bold hover:underline">{loginView === 'signin' ? t('login_signup_btn') : t('login_signin_btn')}</button></p></div>
                 <div className="relative flex items-center py-2"><div className="flex-grow border-t border-slate-100"></div><span className="flex-shrink mx-4 text-xs font-bold text-slate-300 uppercase tracking-widest">{t('login_other_methods')}</span><div className="flex-grow border-t border-slate-100"></div></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={async () => { setIsLoggingIn('wechat'); const mockOpenId = `wx_${Math.floor(Math.random() * 9000) + 1000}`; const newUser: UserProfile = { id: mockOpenId, nickname: 'WX_User_' + mockOpenId.split('_')[1], avatar: `https://picsum.photos/seed/${mockOpenId}/100/100`, grade: language === 'zh' ? '10年级' : 'Grade 10' }; try { await apiService.syncUser(newUser); await refreshUsers(); } catch(e) {} handleAccountSwitch(newUser); setIsLoggingIn(null); }} className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 py-3 px-4 rounded-2xl font-bold text-sm border border-emerald-100 hover:bg-emerald-100 transition-all"><QrCode size={18} />{t('wechat_login')}</button>
-                  <button onClick={async () => { setIsLoggingIn('github'); const mockGhId = `gh_${Math.floor(Math.random() * 9000) + 1000}`; const newUser: UserProfile = { id: mockGhId, nickname: 'GH_User_' + mockGhId.split('_')[1], avatar: `https://avatars.githubusercontent.com/u/${Math.floor(Math.random() * 100000)}?v=4`, grade: language === 'zh' ? '12年级' : 'Grade 12' }; try { await apiService.syncUser(newUser); await refreshUsers(); } catch(e) {} handleAccountSwitch(newUser); setIsLoggingIn(null); }} className="flex items-center justify-center gap-2 bg-slate-900 text-white py-3 px-4 rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all"><Github size={18} />{t('github_login')}</button>
-                </div>
+                <p className="text-xs text-slate-400 text-center">{language === 'zh' ? '当前仅支持邮箱登录' : 'Only email login is supported right now.'}</p>
               </div>
             )}
           </div>

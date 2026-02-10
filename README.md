@@ -11,8 +11,8 @@ IntelliTask AI 是一个闭环的智能教育辅助系统，通过 AI 技术实�
 mindmap
   root((IntelliTask AI))
     账号与同步
-      多账号切换 (WeChat/GitHub)
-      云端持久化 (Supabase)
+      邮箱登录
+      云端持久化 (后端服务)
       资料管理 (支持学校/年级配置)
       国际化 (ZH/EN)
     作业采集 (Inbox)
@@ -50,12 +50,11 @@ erDiagram
     HOMEWORK-TASK ||--o| LEARNING-PLAN : "triggers"
     
     USER-PROFILE {
-        string id PK "WeChat/GitHub/Email ID"
+        string id PK "User ID"
         string nickname
         string avatar
         string grade
         string school "所属学校"
-        string password "Plain text for demo, hash in production"
     }
 
     HOMEWORK-TASK {
@@ -84,80 +83,19 @@ erDiagram
 
     APP-SETTINGS {
         string id PK "User ID"
-        jsonb settings "aiProvider, keys, endpoints"
+        jsonb settings "schools, eventNodes"
     }
 ```
 
-## 3. 数据库初始化与迁移 (SQL)
+## 3. 后端服务与数据
 
-### 3.1 完整初始化脚本 (针对新环境)
-在 Supabase **SQL Editor** 中运行以下脚本以创建所有必要的表：
+本仓库已切换为前后端分离架构：
 
-```sql
--- 1. 用户资料表 (增加学校字段)
-CREATE TABLE IF NOT EXISTS user_profiles (
-  id TEXT PRIMARY KEY,
-  nickname TEXT,
-  avatar TEXT,
-  grade TEXT,
-  school TEXT,
-  password TEXT
-);
+- **前端**：`homeWorkTask`
+- **后端**：`intelli-task-ai` (Spring Boot / PostgreSQL)
 
--- 2. 作业任务表
-CREATE TABLE IF NOT EXISTS homework_tasks (
-  id TEXT PRIMARY KEY,
-  user_id TEXT REFERENCES user_profiles(id) ON DELETE CASCADE,
-  source TEXT,
-  subject TEXT,
-  category TEXT,
-  content TEXT,
-  deadline TEXT,
-  status TEXT,
-  title TEXT,
-  timestamp BIGINT,
-  submission_image TEXT,
-  result JSONB
-);
-
--- 3. 学习计划表
-CREATE TABLE IF NOT EXISTS learning_plans (
-  id TEXT PRIMARY KEY,
-  user_id TEXT REFERENCES user_profiles(id) ON DELETE CASCADE,
-  source_task_id TEXT,
-  focus_area TEXT,
-  tasks JSONB,
-  deep_analysis TEXT,
-  source_task_title TEXT,
-  source_task_subject TEXT,
-  created_at BIGINT
-);
-
--- 4. 应用设置表
-CREATE TABLE IF NOT EXISTS app_settings (
-  id TEXT PRIMARY KEY REFERENCES user_profiles(id) ON DELETE CASCADE,
-  settings JSONB NOT NULL,
-  updated_at BIGINT
-);
-```
-
-### 3.2 结构变更脚本 (针对已有环境)
-如果您的数据库已经运行，请执行以下命令来同步最新的字段变更：
-
-```sql
--- 为用户表添加学校信息字段
-ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS school TEXT;
-
--- 确保学习计划表包含关联作业的元数据（用于 Hub 展示）
-ALTER TABLE learning_plans ADD COLUMN IF NOT EXISTS source_task_title TEXT;
-ALTER TABLE learning_plans ADD COLUMN IF NOT EXISTS source_task_subject TEXT;
-
--- 禁用 RLS 以确保开发环境顺畅 (仅限开发阶段)
-ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE homework_tasks DISABLE ROW LEVEL SECURITY;
-ALTER TABLE learning_plans DISABLE ROW LEVEL SECURITY;
-ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
-```
+数据库由后端自动管理，迁移脚本位于后端：
+`/Users/yale/Documents/GitHub/intelli-task-ai/src/main/resources/db/migration`
 
 ## 4. 核心功能说明
 
@@ -167,8 +105,8 @@ ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
 *   **AI 备考建议**：系统会分析该里程碑前一阶段的所有作业表现，生成针对性的复习策略。
 
 ### 4.2 智能批改与闭环学习
-*   **Scanner**：通过 Gemini 1.5 Pro 对上传的作业图片进行 OCR 识别、逻辑批改并给出多维度的知识点掌握评价。
+*   **Scanner**：通过后端 AI 服务对上传的作业图片进行 OCR 识别、逻辑批改并给出多维度的知识点掌握评价。
 *   **Learning Hub**：根据批改结果中的 Weaknesses 字段，AI 会自动编写深度学情诊断，并提供“基础-进阶-挑战”三段式学习任务。
 
 ---
-*Powered by Google Gemini API & Supabase.*
+*Powered by IntelliTask AI Backend.*
